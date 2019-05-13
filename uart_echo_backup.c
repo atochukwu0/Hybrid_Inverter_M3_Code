@@ -1,7 +1,3 @@
-
-
-
-
 //###########################################################################
 // FILE:   uart_echo.c
 // TITLE:  Example for reading data from and writing data to the UART in
@@ -10,7 +6,7 @@
 // $TI Release: F28M35x Driver Library v100 $
 // $Release Date: October 12, 2011 $
 //###########################################################################
-//Major change to data acquisition structure
+//Major change to data aqquasition structure
 //Used structures to share data between processors, Used start flag to sync pointers.
 
 #include "inc/hw_ints.h"
@@ -96,19 +92,12 @@ struct Message {
 struct CtoMData {
 
     unsigned long long Pw;
-    unsigned int start_flag;
-    enum states system_state;
-    float Vdc;
-    float Vgrid;
-    float Vout;
+    unsigned short start_flag;
 
 };
 
 struct MtoCData {
     unsigned long long Pr;
-    unsigned int solar_available;
-    unsigned int is_peaktime;
-    unsigned int op_power;
 };
 
 unsigned char crc=0x00;
@@ -228,28 +217,6 @@ Timer1IntHandler(void)
     // Clear the timer interrupt.
     TimerIntClear(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
 
-    if(!GPIOPinRead(GPIO_PORTE_BASE,GPIO_PIN_7))
-        {
-          Enter_pressed=1;
-        }
-    if(!GPIOPinRead(GPIO_PORTJ_BASE,GPIO_PIN_5))
-        {
-          Back_pressed=1;
-        }
-    if(!GPIOPinRead(GPIO_PORTJ_BASE,GPIO_PIN_6))
-        {
-          INCRE_pressed=1;
-        }
-    if(!GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_5))
-        {
-          DECRE_pressed=1;
-        }
-
-//    Enter=GPIOPinRead(GPIO_PORTJ_BASE,GPIO_PIN_4);
-//    Back=GPIOPinRead(GPIO_PORTJ_BASE,GPIO_PIN_5);
-//    INCRE=GPIOPinRead(GPIO_PORTJ_BASE,GPIO_PIN_6);
-//    DECRE=GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_5);
-
     // Toggle the flag for the second timer.
     HWREGBITW(&g_ulFlags, 1) ^= 1;
 
@@ -287,9 +254,6 @@ UARTSend(const unsigned char *pucBuffer, unsigned long ulCount)
     }
 }
 
-int a=54325;
-char buffer[20];
-float b=4562.26;
 
 
 int
@@ -329,10 +293,11 @@ main(void)
     SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
     SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C0);
 
+
     //Select core for controlling GPIO
     GPIOPinConfigureCoreSelect(GPIO_PORTA_BASE, 0xFF, GPIO_PIN_C_CORE_SELECT);
     GPIOPinConfigureCoreSelect(GPIO_PORTB_BASE, 0x3F, GPIO_PIN_C_CORE_SELECT);  // Two pins used for I2C
-    GPIOPinConfigureCoreSelect(GPIO_PORTC_BASE, 0x7F, GPIO_PIN_C_CORE_SELECT);  // 1 pins used byt M3 for blink LED
+    GPIOPinConfigureCoreSelect(GPIO_PORTC_BASE, 0x7F, GPIO_PIN_C_CORE_SELECT);  // 1 pins used by M3 for blink LED
     GPIOPinConfigureCoreSelect(GPIO_PORTD_BASE, 0xFF, GPIO_PIN_C_CORE_SELECT);
     GPIOPinConfigureCoreSelect(GPIO_PORTE_BASE, 0xCF, GPIO_PIN_C_CORE_SELECT); // Two pins used by M3 for UART
     GPIOPinConfigureCoreSelect(GPIO_PORTF_BASE, 0xDF, GPIO_PIN_C_CORE_SELECT); // 1 switch for menu usage
@@ -361,18 +326,20 @@ main(void)
 
     //Set up pins for I2C
     //Unlock GPIO This has to be done because this pin is a NMI
-    GPIOPinUnlock(GPIO_PORTB_BASE, GPIO_PIN_7);
+    GPIOPinUnlock(GPIO_PORTB_BASE, GPIO_PIN_7); //This function was not initialy available on v100 files. Copied the functions to v100 files from v220 files
     GPIOPinConfigure(GPIO_PB6_I2C0SDA);
     GPIOPinConfigure(GPIO_PB7_I2C0SCL);
-    GPIOPinTypeI2C(GPIO_PORTB_BASE, GPIO_PIN_6 | GPIO_PIN_7);   //GPIO14 | GPIO15
+    GPIOPinTypeI2C(GPIO_PORTB_BASE, GPIO_PIN_6 | GPIO_PIN_7);
 
     // Set up the Pin for LED
     GPIOPinTypeGPIOOutput(GPIO_PORTC_BASE, GPIO_PIN_7);
     //Set up the pins for SW
-    GPIOPinTypeGPIOInput(GPIO_PORTF_BASE,GPIO_PIN_5);   //GPIO37
-    GPIOPinTypeGPIOInput(GPIO_PORTE_BASE,GPIO_PIN_7);   //GPIO31
-    GPIOPinTypeGPIOInput(GPIO_PORTJ_BASE,GPIO_PIN_5);   //GPIO61
-    GPIOPinTypeGPIOInput(GPIO_PORTJ_BASE,GPIO_PIN_6);   //GPIO62
+
+    GPIOPinTypeGPIOInput(GPIO_PORTF_BASE,GPIO_PIN_5);
+    GPIOPinTypeGPIOInput(GPIO_PORTJ_BASE,GPIO_PIN_4);
+    GPIOPinTypeGPIOInput(GPIO_PORTJ_BASE,GPIO_PIN_5);
+    GPIOPinTypeGPIOInput(GPIO_PORTJ_BASE,GPIO_PIN_6);
+
 
     SysCtlReleaseSubSystemFromReset(SYSCTL_CONTROL_SYSTEM_RES_CNF);
 
@@ -435,7 +402,7 @@ main(void)
     TimerConfigure(TIMER0_BASE, TIMER_CFG_32_BIT_PER);
     TimerConfigure(TIMER1_BASE, TIMER_CFG_32_BIT_PER);
     TimerLoadSet(TIMER0_BASE, TIMER_A, (SysCtlClockGet(SYSTEM_CLOCK_SPEED)/10000)); //10kHz timer interrupt , used for data transfer
-    TimerLoadSet(TIMER1_BASE, TIMER_A, (SysCtlClockGet(SYSTEM_CLOCK_SPEED)/2));    // 2Hz timer interrupt , used for button de-bounce
+    TimerLoadSet(TIMER1_BASE, TIMER_A, (SysCtlClockGet(SYSTEM_CLOCK_SPEED)/4));    // 4Hz timer interrupt , used for button de-bounce
 
     // Setup the interrupts for the timer timeouts.
     IntEnable(INT_TIMER0A);
@@ -446,125 +413,13 @@ main(void)
     IntRegister(INT_TIMER1A, Timer1IntHandler);
 
     MtoCvar.Pr = 0;
-    MtoCvar.solar_available=0;
-    MtoCvar.is_peaktime=0;
-    MtoCvar.op_power=0;
 
     // Enable the timers.
     TimerEnable(TIMER0_BASE, TIMER_A);
     TimerEnable(TIMER1_BASE, TIMER_A);
 
-    currentPage=HOME;
-    initializeLCD(20, 4, LCD_5x8DOTS);
-    setBacklightLCD(255);
-    homeLCD();
-    clearLCD();
-
-
-//    cursorLCD();
-//    blinkLCD();
-//    printLCD(0,0,"JLanka");
-//    ltoa(a,buffer);
-//    printLCD(0,1,buffer);
-//    ftoa(b,buffer,2);
-//    printLCD(0,2,buffer);
-
-    printLCD(1,0,"Solar flag: ");
-    printLCD(1,1,"Peak flag: ");
-    printLCD(1,2,"OP Power: ");
-    ltoa(MtoCvar.solar_available,buffer);
-    printLCD(14,0,buffer);
-    ltoa(MtoCvar.is_peaktime,buffer);
-    printLCD(14,1,buffer);
-    ltoa(MtoCvar.op_power,buffer);
-    printLCD(14,2,buffer);
-
-
-
     //Loop forever
     while(1){
-
-        printLCD(0,0," ");
-        printLCD(0,1," ");
-        printLCD(0,2," ");
-        printLCD(0,edit_row_index,">");
-
-
-        if(edit_mode){
-            ltoa(editvar,buffer);
-            printLCD(14,edit_row_index,buffer);
-            setCursorLCD(14, edit_row_index);
-            blinkLCD();
-        }
-        else{
-            switch(edit_row_index){
-             case 0:
-                 editvar=MtoCvar.solar_available;
-                 break;
-             case 1:
-                 editvar=MtoCvar.is_peaktime;
-                 break;
-             case 2:
-                 editvar=MtoCvar.op_power;
-                 break;
-             default:
-                 break;
-             }
-        }
-
-        if(DECRE_pressed){
-            DECRE_pressed=0;
-            if(edit_mode && editvar>0){
-                editvar--;
-            }
-            else{
-                if(edit_row_index<3){
-                    edit_row_index++;
-                }
-            }
-        }
-        if(INCRE_pressed){
-            INCRE_pressed=0;
-            if(edit_mode){
-                editvar++;
-            }
-            else
-                if(edit_row_index>0){
-                    edit_row_index--;
-                }
-
-        }
-        if(Enter_pressed){
-            Enter_pressed=0;
-            if(!edit_mode){
-            edit_mode=1;
-            }
-            else{
-                edit_mode=0;
-                noBlinkLCD();
-                switch(edit_row_index){
-                case 0:
-                    MtoCvar.solar_available=editvar;
-                    break;
-                case 1:
-                    MtoCvar.is_peaktime=editvar;
-                    break;
-                case 2:
-                    MtoCvar.op_power=editvar;
-                    break;
-                default:
-                    break;
-
-                }
-            }
-        }
-        if(Back_pressed){
-            Back_pressed=0;
-            edit_mode=0;
-            noBlinkLCD();
-
-        }
-
 
         // Toggle the LED.
         if (count>10)
