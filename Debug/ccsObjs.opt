@@ -1,0 +1,1 @@
+"./LiquidCrystal_PCF8574.obj" "./SolarHv_DCAC-Lin.obj" "./memcopy.obj" "./startup_ccs.obj" "./uart.obj" "./uart_echo.obj" "../F28M35M52C1_m3.cmd" "C:/ti/controlSUITE/device_support/f28m35x/v100/MWare/driverlib/ccs/Debug/driverlib.lib" -lrtsv7M3_T_le_eabi.lib 
