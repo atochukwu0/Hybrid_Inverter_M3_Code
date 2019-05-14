@@ -263,6 +263,7 @@ void _write2I2C(uint8_t halfByte, uint8_t mode, uint8_t enable) {
   I2CMasterControl(I2C0_MASTER_BASE, I2C_MASTER_CMD_SINGLE_SEND);
   while(I2CMasterBusy(I2C0_MASTER_BASE))
   {
+
   }
 } // write2Wire
 

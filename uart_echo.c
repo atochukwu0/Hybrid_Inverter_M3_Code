@@ -72,7 +72,8 @@ enum states {
     UPS,
     GRID_POWER_NO_CHARGING,
     GRID_POWER_CHARGING,
-    GRID_TIED,
+    GRID_TIED_SOLAR,
+    GRID_TIED_PEAK,
     ERROR
 };
 
@@ -96,19 +97,20 @@ struct Message {
 struct CtoMData {
 
     unsigned long long Pw;
-    unsigned int start_flag;
-    enum states system_state;
+    unsigned short start_flag;
     float Vdc;
     float Vgrid;
     float Vout;
+    enum states system_state;
 
 };
 
 struct MtoCData {
     unsigned long long Pr;
-    unsigned int solar_available;
-    unsigned int is_peaktime;
-    unsigned int op_power;
+    unsigned short solar_available;
+    unsigned short is_peaktime;
+    unsigned short peak_enabled;
+    unsigned short op_power;
 };
 
 unsigned char crc=0x00;
@@ -228,21 +230,25 @@ Timer1IntHandler(void)
     // Clear the timer interrupt.
     TimerIntClear(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
 
-    if(!GPIOPinRead(GPIO_PORTE_BASE,GPIO_PIN_7))
+    if(!GPIOPinRead(GPIO_PORTJ_BASE,GPIO_PIN_4))
         {
-          Enter_pressed=1;
+          //Enter_pressed=1;
+          DECRE_pressed = 1;
         }
     if(!GPIOPinRead(GPIO_PORTJ_BASE,GPIO_PIN_5))
         {
-          Back_pressed=1;
+          //Back_pressed=1;
+          Enter_pressed=1;
         }
     if(!GPIOPinRead(GPIO_PORTJ_BASE,GPIO_PIN_6))
         {
-          INCRE_pressed=1;
+          //INCRE_pressed=1;
+          Back_pressed = 1;
         }
     if(!GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_5))
         {
-          DECRE_pressed=1;
+          //DECRE_pressed=1;
+          INCRE_pressed = 1;
         }
 
 //    Enter=GPIOPinRead(GPIO_PORTJ_BASE,GPIO_PIN_4);
@@ -370,7 +376,7 @@ main(void)
     GPIOPinTypeGPIOOutput(GPIO_PORTC_BASE, GPIO_PIN_7);
     //Set up the pins for SW
     GPIOPinTypeGPIOInput(GPIO_PORTF_BASE,GPIO_PIN_5);   //GPIO37
-    GPIOPinTypeGPIOInput(GPIO_PORTE_BASE,GPIO_PIN_7);   //GPIO31
+    GPIOPinTypeGPIOInput(GPIO_PORTJ_BASE,GPIO_PIN_4);   //GPIO60
     GPIOPinTypeGPIOInput(GPIO_PORTJ_BASE,GPIO_PIN_5);   //GPIO61
     GPIOPinTypeGPIOInput(GPIO_PORTJ_BASE,GPIO_PIN_6);   //GPIO62
 
@@ -447,7 +453,8 @@ main(void)
 
     MtoCvar.Pr = 0;
     MtoCvar.solar_available=0;
-    MtoCvar.is_peaktime=0;
+    MtoCvar.is_peaktime=0;                              /**/
+    MtoCvar.peak_enabled=0;
     MtoCvar.op_power=0;
 
     // Enable the timers.
@@ -484,10 +491,10 @@ main(void)
     //Loop forever
     while(1){
 
-        printLCD(0,0," ");
-        printLCD(0,1," ");
-        printLCD(0,2," ");
-        printLCD(0,edit_row_index,">");
+//        printLCD(0,0," ");
+//        printLCD(0,1," ");
+//        printLCD(0,2," ");
+//        printLCD(0,edit_row_index,">");
 
 
         if(edit_mode){
@@ -520,6 +527,10 @@ main(void)
             else{
                 if(edit_row_index<3){
                     edit_row_index++;
+                    printLCD(0,0," ");
+                    printLCD(0,1," ");
+                    printLCD(0,2," ");
+                    printLCD(0,edit_row_index,">");
                 }
             }
         }
@@ -531,6 +542,10 @@ main(void)
             else
                 if(edit_row_index>0){
                     edit_row_index--;
+                    printLCD(0,0," ");
+                    printLCD(0,1," ");
+                    printLCD(0,2," ");
+                    printLCD(0,edit_row_index,">");
                 }
 
         }
