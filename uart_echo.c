@@ -462,10 +462,10 @@ main(void)
     TimerEnable(TIMER1_BASE, TIMER_A);
 
     currentPage=HOME;
-    initializeLCD(20, 4, LCD_5x8DOTS);
-    setBacklightLCD(255);
-    homeLCD();
-    clearLCD();
+    MtoCvar.peak_enabled=initializeLCD(20, 4, LCD_5x8DOTS);
+    MtoCvar.peak_enabled=setBacklightLCD(255);
+    MtoCvar.peak_enabled=homeLCD();
+    MtoCvar.peak_enabled=clearLCD();
 
 
 //    cursorLCD();
@@ -476,15 +476,15 @@ main(void)
 //    ftoa(b,buffer,2);
 //    printLCD(0,2,buffer);
 
-    printLCD(1,0,"Solar flag: ");
-    printLCD(1,1,"Peak flag: ");
-    printLCD(1,2,"OP Power: ");
+    MtoCvar.peak_enabled=printLCD(1,0,"Solar flag: ");
+    MtoCvar.peak_enabled=printLCD(1,1,"Peak flag: ");
+    MtoCvar.peak_enabled=printLCD(1,2,"OP Power: ");
     ltoa(MtoCvar.solar_available,buffer);
-    printLCD(14,0,buffer);
+    MtoCvar.peak_enabled=printLCD(14,0,buffer);
     ltoa(MtoCvar.is_peaktime,buffer);
-    printLCD(14,1,buffer);
+    MtoCvar.peak_enabled=printLCD(14,1,buffer);
     ltoa(MtoCvar.op_power,buffer);
-    printLCD(14,2,buffer);
+    MtoCvar.peak_enabled=printLCD(14,2,buffer);
 
 
 
@@ -497,11 +497,12 @@ main(void)
 //        printLCD(0,edit_row_index,">");
 
 
+
         if(edit_mode){
             ltoa(editvar,buffer);
-            printLCD(14,edit_row_index,buffer);
-            setCursorLCD(14, edit_row_index);
-            blinkLCD();
+            MtoCvar.peak_enabled= printLCD(14,edit_row_index,buffer);
+            MtoCvar.peak_enabled=setCursorLCD(14, edit_row_index);
+            MtoCvar.peak_enabled=blinkLCD();
         }
         else{
             switch(edit_row_index){
@@ -527,10 +528,10 @@ main(void)
             else{
                 if(edit_row_index<3){
                     edit_row_index++;
-                    printLCD(0,0," ");
-                    printLCD(0,1," ");
-                    printLCD(0,2," ");
-                    printLCD(0,edit_row_index,">");
+                    MtoCvar.peak_enabled=printLCD(0,0," ");
+                    MtoCvar.peak_enabled=printLCD(0,1," ");
+                    MtoCvar.peak_enabled=printLCD(0,2," ");
+                    MtoCvar.peak_enabled=printLCD(0,edit_row_index,">");
                 }
             }
         }
@@ -542,10 +543,10 @@ main(void)
             else
                 if(edit_row_index>0){
                     edit_row_index--;
-                    printLCD(0,0," ");
-                    printLCD(0,1," ");
-                    printLCD(0,2," ");
-                    printLCD(0,edit_row_index,">");
+                    MtoCvar.peak_enabled=printLCD(0,0," ");
+                    MtoCvar.peak_enabled=printLCD(0,1," ");
+                    MtoCvar.peak_enabled=printLCD(0,2," ");
+                    MtoCvar.peak_enabled=printLCD(0,edit_row_index,">");
                 }
 
         }
@@ -556,7 +557,7 @@ main(void)
             }
             else{
                 edit_mode=0;
-                noBlinkLCD();
+                MtoCvar.peak_enabled=noBlinkLCD();
                 switch(edit_row_index){
                 case 0:
                     MtoCvar.solar_available=editvar;
@@ -576,7 +577,7 @@ main(void)
         if(Back_pressed){
             Back_pressed=0;
             edit_mode=0;
-            noBlinkLCD();
+            MtoCvar.peak_enabled=noBlinkLCD();
 
         }
 
@@ -584,6 +585,10 @@ main(void)
         // Toggle the LED.
         if (count>10)
     	{
+            count2++;
+            ltoa(count2,buffer);
+            MtoCvar.peak_enabled= printLCD(2,3,buffer);
+
     	    if(LED==0){
     			LED = 1;
     			GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_7, ~0);

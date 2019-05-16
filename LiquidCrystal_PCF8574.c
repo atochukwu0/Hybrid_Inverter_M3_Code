@@ -49,7 +49,7 @@
 
 
 
-void initializeLCD(uint8_t cols, uint8_t lines, uint8_t dotsize) {
+char initializeLCD(uint8_t cols, uint8_t lines, uint8_t dotsize) {
   // cols ignored !
   _numlines = lines;
 
@@ -67,145 +67,212 @@ void initializeLCD(uint8_t cols, uint8_t lines, uint8_t dotsize) {
   // SEE PAGE 45/46 FOR INITIALIZATION SPECIFICATION!
   // according to datasheet, we need at least 40ms after power rises above 2.7V
   // before sending commands. Arduino can turn on way befor 4.5V so we'll wait 50
+  char is_sucessful;
 
   // initializing th display
-  _write2I2C(0x00, 0, false);
+  is_sucessful=_write2I2C(0x00, 0, false);
+  if(is_sucessful==0)
+      return 0;
   delayMicroseconds(50000); 
 
   // put the LCD into 4 bit mode according to the hitachi HD44780 datasheet figure 26, pg 47
-  _sendNibble(0x03, RSMODE_CMD);
+  is_sucessful=_sendNibble(0x03, RSMODE_CMD);
+  if(is_sucessful==0)
+      return 0;
   delayMicroseconds(4500); 
-  _sendNibble(0x03, RSMODE_CMD);
+  is_sucessful=_sendNibble(0x03, RSMODE_CMD);
+  if(is_sucessful==0)
+      return 0;
   delayMicroseconds(4500); 
-  _sendNibble(0x03, RSMODE_CMD);
+  is_sucessful=_sendNibble(0x03, RSMODE_CMD);
+  if(is_sucessful==0)
+      return 0;
   delayMicroseconds(150);
   // finally, set to 4-bit interface
-  _sendNibble(0x02, RSMODE_CMD);
-
+  is_sucessful=_sendNibble(0x02, RSMODE_CMD);
+  if(is_sucessful==0)
+      return 0;
   // finally, set # lines, font size, etc.
-  _command(LCD_FUNCTIONSET | _displayfunction);  
-
+  is_sucessful=_command(LCD_FUNCTIONSET | _displayfunction);
+  if(is_sucessful==0)
+      return 0;
   // turn the display on with no cursor or blinking default
   _displaycontrol = LCD_DISPLAYON | LCD_CURSOROFF | LCD_BLINKOFF;  
-  displayLCD();
-
+  is_sucessful=displayLCD();
+  if(is_sucessful==0)
+      return 0;
   // clear it off
-  clearLCD();
-
+  is_sucessful=clearLCD();
+  if(is_sucessful==0)
+      return 0;
   // Initialize to default text direction (for romance languages)
   _displaymode = LCD_ENTRYLEFT | LCD_ENTRYSHIFTDECREMENT;
   // set the entry mode
-  _command(LCD_ENTRYMODESET | _displaymode);
+  is_sucessful=_command(LCD_ENTRYMODESET | _displaymode);
+  if(is_sucessful==0)
+      return 0;
+  return 1;
 }
 
 /********** high level commands, for the user! */
-void clearLCD()
+char clearLCD()
 {
-  _command(LCD_CLEARDISPLAY);  // clear display, set cursor position to zero
+  char is_sucessful=_command(LCD_CLEARDISPLAY);  // clear display, set cursor position to zero
+  if(is_sucessful==0)
+      return 0;
   delayMicroseconds(2000);  // this command takes a long time!
+  return 1;
 }
 
-void homeLCD()
+char homeLCD()
 {
-  _command(LCD_RETURNHOME);  // set cursor position to zero
+  char is_sucessful=_command(LCD_RETURNHOME);  // set cursor position to zero
+  if(is_sucessful==0)
+      return 0;
   delayMicroseconds(2000);  // this command takes a long time!
+  return 1;
 }
 
 
 /// Set the cursor to a new position. 
-void setCursorLCD(uint8_t col, uint8_t row)
+char setCursorLCD(uint8_t col, uint8_t row)
 {
   int row_offsets[] = { 0x00, 0x40, 0x14, 0x54   };
   if ( row >= _numlines ) {
     row = _numlines-1;    // we count rows starting w/0
   }
 
-  _command(LCD_SETDDRAMADDR | (col + row_offsets[row]));
+  char is_sucessful=_command(LCD_SETDDRAMADDR | (col + row_offsets[row]));
+  if(is_sucessful==0)
+      return 0;
+  return 1;
 }
 
 // Turn the display on/off (quickly)
-void noDisplayLCD() {
+char noDisplayLCD() {
   _displaycontrol &= ~LCD_DISPLAYON;
-  _command(LCD_DISPLAYCONTROL | _displaycontrol);
+  char is_sucessful=_command(LCD_DISPLAYCONTROL | _displaycontrol);
+  if(is_sucessful==0)
+      return 0;
+  return 1;
 }
-void displayLCD() {
+char displayLCD() {
   _displaycontrol |= LCD_DISPLAYON;
-  _command(LCD_DISPLAYCONTROL | _displaycontrol);
+  char is_sucessful=_command(LCD_DISPLAYCONTROL | _displaycontrol);
+  if(is_sucessful==0)
+      return 0;
+  return 1;
 }
 
 // Turns the underline cursor on/off
-void noCursorLCD() {
+char noCursorLCD() {
   _displaycontrol &= ~LCD_CURSORON;
-  _command(LCD_DISPLAYCONTROL | _displaycontrol);
+  char is_sucessful=_command(LCD_DISPLAYCONTROL | _displaycontrol);
+  if(is_sucessful==0)
+      return 0;
+  return 1;
 }
-void cursorLCD() {
+char cursorLCD() {
   _displaycontrol |= LCD_CURSORON;
-  _command(LCD_DISPLAYCONTROL | _displaycontrol);
+  char is_sucessful=_command(LCD_DISPLAYCONTROL | _displaycontrol);
+  if(is_sucessful==0)
+      return 0;
+  return 1;
 }
 
 // Turn on and off the blinking cursor
-void noBlinkLCD() {
+char noBlinkLCD() {
   _displaycontrol &= ~LCD_BLINKON;
-  _command(LCD_DISPLAYCONTROL | _displaycontrol);
+  char is_sucessful=_command(LCD_DISPLAYCONTROL | _displaycontrol);
+  if(is_sucessful==0)
+      return 0;
+  return 1;
 }
-void blinkLCD() {
+char blinkLCD() {
   _displaycontrol |= LCD_BLINKON;
-  _command(LCD_DISPLAYCONTROL | _displaycontrol);
+  char is_sucessful=_command(LCD_DISPLAYCONTROL | _displaycontrol);
+  if(is_sucessful==0)
+      return 0;
+  return 1;
 }
 
 // These commands scroll the display without changing the RAM
-void scrollDisplayLeftLCD(void) {
-  _command(LCD_CURSORSHIFT | LCD_DISPLAYMOVE | LCD_MOVELEFT);
+char scrollDisplayLeftLCD(void) {
+  char is_sucessful=_command(LCD_CURSORSHIFT | LCD_DISPLAYMOVE | LCD_MOVELEFT);
+  if(is_sucessful==0)
+      return 0;
+  return 1;
 }
-void scrollDisplayRightLCD(void) {
-  _command(LCD_CURSORSHIFT | LCD_DISPLAYMOVE | LCD_MOVERIGHT);
+char scrollDisplayRightLCD(void) {
+  char is_sucessful=_command(LCD_CURSORSHIFT | LCD_DISPLAYMOVE | LCD_MOVERIGHT);
+  if(is_sucessful==0)
+      return 0;
+  return 1;
 }
 
 // This is for text that flows Left to Right
-void leftToRightLCD(void) {
+char leftToRightLCD(void) {
   _displaymode |= LCD_ENTRYLEFT;
-  _command(LCD_ENTRYMODESET | _displaymode);
+  char is_sucessful=_command(LCD_ENTRYMODESET | _displaymode);
+  if(is_sucessful==0)
+      return 0;
+  return 1;
 }
 
 // This is for text that flows Right to Left
-void rightToLeftLCD(void) {
+char rightToLeftLCD(void) {
   _displaymode &= ~LCD_ENTRYLEFT;
-  _command(LCD_ENTRYMODESET | _displaymode);
+  char is_sucessful=_command(LCD_ENTRYMODESET | _displaymode);
+  if(is_sucessful==0)
+      return 0;
+  return 1;
 }
 
 // This will 'right justify' text from the cursor
-void autoscrollLCD(void) {
+char autoscrollLCD(void) {
   _displaymode |= LCD_ENTRYSHIFTINCREMENT;
-  _command(LCD_ENTRYMODESET | _displaymode);
+  char is_sucessful=_command(LCD_ENTRYMODESET | _displaymode);
+  if(is_sucessful==0)
+      return 0;
+  return 1;
 }
 
 // This will 'left justify' text from the cursor
-void noAutoscrollLCD(void) {
+char noAutoscrollLCD(void) {
   _displaymode &= ~LCD_ENTRYSHIFTINCREMENT;
-  _command(LCD_ENTRYMODESET | _displaymode);
+  char is_sucessful=_command(LCD_ENTRYMODESET | _displaymode);
+  if(is_sucessful==0)
+      return 0;
+  return 1;
 }
 
 
 /// Setting the brightness of the background display light.
 /// The backlight can be switched on and off.
 /// The current brightness is stored in the private _backlight variable to have it available for further data transfers.
-void setBacklightLCD(uint8_t brightness) {
+char setBacklightLCD(uint8_t brightness) {
   _backlight = brightness;
   // send no data but set the background-pin right;
-  _write2I2C(0x00, RSMODE_DATA, false);
+  char is_sucessful=_write2I2C(0x00, RSMODE_DATA, false);
+  if(is_sucessful==0)
+      return 0;
+  return 1;
 } // setBacklight
 
 //Print a string on LCD starting from given location
-void printLCD(uint8_t col, uint8_t row, char *text)
+char printLCD(uint8_t col, uint8_t row, char *text)
 {
     int i;
     setCursorLCD(col,row);
     size_t n = strlen(text);
+    char is_sucessful;
     for(i=0;i<n;i++)
     {
-        _send(text[i],RSMODE_DATA);
+        is_sucessful=_send(text[i],RSMODE_DATA);
+        if(is_sucessful==0)
+            return 0;
     }
-    return;
+    return 1;
 }
 //// Allows us to fill the first 8 CGRAM locations
 //// with custom characters
@@ -225,34 +292,45 @@ void printLCD(uint8_t col, uint8_t row, char *text)
 
 /* ----- low level functions ----- */
 
-inline void _command(uint8_t value) {
-  _send(value, RSMODE_CMD);
+inline char _command(uint8_t value) {
+  char is_sucessful=_send(value, RSMODE_CMD);
+  return is_sucessful;
 } // _command()
 
 
 // write either command or data
-void _send(uint8_t value, uint8_t mode) {
+char _send(uint8_t value, uint8_t mode) {
   // separate the 4 value-nibbles
   uint8_t valueLo = value    & 0x0F;
   uint8_t valueHi = value>>4 & 0x0F;
 
-  _sendNibble(valueHi, mode);
-  _sendNibble(valueLo, mode);
+  char is_sucessful1=_sendNibble(valueHi, mode);
+  char is_sucessful2=_sendNibble(valueLo, mode);
+  if(is_sucessful1 && is_sucessful2)
+      return 1;
+  else
+      return 0;
+
 } // _send()
 
 
 // write a nibble / halfByte with handshake
-void _sendNibble(uint8_t halfByte, uint8_t mode) {
-  _write2I2C(halfByte, mode, true);
+char _sendNibble(uint8_t halfByte, uint8_t mode) {
+  char is_sucessful1=_write2I2C(halfByte, mode, true);
   delayMicroseconds(1);    // enable pulse must be >450ns
-  _write2I2C(halfByte, mode, false);
-  delayMicroseconds(40);    // commands need > 37us to settle
+  char is_sucessful2=_write2I2C(halfByte, mode, false);
+  delayMicroseconds(40);
+  if(is_sucessful1 && is_sucessful2)
+      return 1;
+  else
+      return 0;
 }
 
 
 // private function to change the PCF8674 pins to the given value
-void _write2I2C(uint8_t halfByte, uint8_t mode, uint8_t enable) {
+char _write2I2C(uint8_t halfByte, uint8_t mode, uint8_t enable) {
   // map the given values to the hardware of the I2C schema
+  unsigned int failCount=0;
   uint8_t i2cData = halfByte << 4;
   if (mode > 0) i2cData |= PCF_RS;
   // PCF_RW is never used.
@@ -263,8 +341,11 @@ void _write2I2C(uint8_t halfByte, uint8_t mode, uint8_t enable) {
   I2CMasterControl(I2C0_MASTER_BASE, I2C_MASTER_CMD_SINGLE_SEND);
   while(I2CMasterBusy(I2C0_MASTER_BASE))
   {
-
+      failCount++;
+      if(failCount>1000)
+          return 0;
   }
+  return 1;
 } // write2Wire
 
 // Micro seconds delay implementaton

@@ -50,35 +50,35 @@
 #define LCD_5x8DOTS 0x00
 
 
-void initializeLCD(uint8_t cols, uint8_t rows, uint8_t dotsize);
-void clearLCD();
-void homeLCD();
-void noDisplayLCD();
-void displayLCD();
-void noBlinkLCD();
-void blinkLCD();
-void noCursorLCD();
-void cursorLCD();
-void scrollDisplayLeftLCD();
-void scrollDisplayRightLCD();
-void leftToRightLCD();
-void rightToLeftLCD();
-void autoscrollLCD();
-void noAutoscrollLCD();
+char initializeLCD(uint8_t cols, uint8_t rows, uint8_t dotsize);
+char clearLCD();
+char homeLCD();
+char noDisplayLCD();
+char displayLCD();
+char noBlinkLCD();
+char blinkLCD();
+char noCursorLCD();
+char cursorLCD();
+char scrollDisplayLeftLCD();
+char scrollDisplayRightLCD();
+char leftToRightLCD();
+char rightToLeftLCD();
+char autoscrollLCD();
+char noAutoscrollLCD();
 
-void setBacklightLCD(uint8_t brightness);
-void setCursorLCD(uint8_t col, uint8_t row);
-void printLCD(uint8_t col, uint8_t row, char *text);
+char setBacklightLCD(uint8_t brightness);
+char setCursorLCD(uint8_t col, uint8_t row);
+char printLCD(uint8_t col, uint8_t row, char *text);
 
 //void createCharLCD(uint8_t location, uint8_t[]);
 //virtual size_t write(uint8_t);
 //using Print::write;
 
 // low level functions
-void _command(uint8_t);
-void _send(uint8_t value, uint8_t mode);
-void _sendNibble(uint8_t halfByte, uint8_t mode);
-void _write2I2C(uint8_t halfByte, uint8_t mode, uint8_t enable);
+char _command(uint8_t);
+char _send(uint8_t value, uint8_t mode);
+char _sendNibble(uint8_t halfByte, uint8_t mode);
+char _write2I2C(uint8_t halfByte, uint8_t mode, uint8_t enable);
 void delayMicroseconds(long microseconds); // Implementation of microseconds delay
 
 // NEW:
