@@ -155,6 +155,7 @@ volatile int base_read_index =0;
 volatile char *character_pointer;
 volatile int index=0;
 volatile char serial_print_char;
+volatile unsigned char tempData=0;
 
 
 volatile long count=0,count2=0;
@@ -294,7 +295,7 @@ UARTSend(const unsigned char *pucBuffer, unsigned long ulCount)
 }
 
 int a=54325;
-char buffer[20];
+
 float b=4562.26;
 
 
@@ -424,7 +425,10 @@ main(void)
     // which indicates the I2C Master is initiating a writes to the slave.  If
     // true, that would indicate that the I2C Master is initiating reads from
     // the slave.
-    I2CMasterSlaveAddrSet(I2C0_MASTER_BASE, LCD_ADDRESS, false);
+    I2CMasterSlaveAddrSet(I2C0_MASTER_BASE, 0x49, true);
+    // Do a dummy receive to make sure you don't get junk on the first receive.
+    I2CMasterControl(I2C0_MASTER_BASE, I2C_MASTER_CMD_SINGLE_RECEIVE);
+
 
     // Configure the UART for 115,200, 8-N-1 operation.
      UARTConfigSetExpClk(UART0_BASE, SysCtlClockGet(SYSTEM_CLOCK_SPEED), 8000000,
@@ -461,133 +465,21 @@ main(void)
     TimerEnable(TIMER0_BASE, TIMER_A);
     TimerEnable(TIMER1_BASE, TIMER_A);
 
-    currentPage=HOME;
-    MtoCvar.peak_enabled=initializeLCD(20, 4, LCD_5x8DOTS);
-    MtoCvar.peak_enabled=setBacklightLCD(255);
-    MtoCvar.peak_enabled=homeLCD();
-    MtoCvar.peak_enabled=clearLCD();
-
-
-//    cursorLCD();
-//    blinkLCD();
-//    printLCD(0,0,"JLanka");
-//    ltoa(a,buffer);
-//    printLCD(0,1,buffer);
-//    ftoa(b,buffer,2);
-//    printLCD(0,2,buffer);
-
-    MtoCvar.peak_enabled=printLCD(1,0,"Solar flag: ");
-    MtoCvar.peak_enabled=printLCD(1,1,"Peak flag: ");
-    MtoCvar.peak_enabled=printLCD(1,2,"OP Power: ");
-    ltoa(MtoCvar.solar_available,buffer);
-    MtoCvar.peak_enabled=printLCD(14,0,buffer);
-    ltoa(MtoCvar.is_peaktime,buffer);
-    MtoCvar.peak_enabled=printLCD(14,1,buffer);
-    ltoa(MtoCvar.op_power,buffer);
-    MtoCvar.peak_enabled=printLCD(14,2,buffer);
-
-
-
     //Loop forever
     while(1){
-
-//        printLCD(0,0," ");
-//        printLCD(0,1," ");
-//        printLCD(0,2," ");
-//        printLCD(0,edit_row_index,">");
-
-
-
-        if(edit_mode){
-            ltoa(editvar,buffer);
-            MtoCvar.peak_enabled= printLCD(14,edit_row_index,buffer);
-            MtoCvar.peak_enabled=setCursorLCD(14, edit_row_index);
-            MtoCvar.peak_enabled=blinkLCD();
-        }
-        else{
-            switch(edit_row_index){
-             case 0:
-                 editvar=MtoCvar.solar_available;
-                 break;
-             case 1:
-                 editvar=MtoCvar.is_peaktime;
-                 break;
-             case 2:
-                 editvar=MtoCvar.op_power;
-                 break;
-             default:
-                 break;
-             }
-        }
-
-        if(DECRE_pressed){
-            DECRE_pressed=0;
-            if(edit_mode && editvar>0){
-                editvar--;
-            }
-            else{
-                if(edit_row_index<3){
-                    edit_row_index++;
-                    MtoCvar.peak_enabled=printLCD(0,0," ");
-                    MtoCvar.peak_enabled=printLCD(0,1," ");
-                    MtoCvar.peak_enabled=printLCD(0,2," ");
-                    MtoCvar.peak_enabled=printLCD(0,edit_row_index,">");
-                }
-            }
-        }
-        if(INCRE_pressed){
-            INCRE_pressed=0;
-            if(edit_mode){
-                editvar++;
-            }
-            else
-                if(edit_row_index>0){
-                    edit_row_index--;
-                    MtoCvar.peak_enabled=printLCD(0,0," ");
-                    MtoCvar.peak_enabled=printLCD(0,1," ");
-                    MtoCvar.peak_enabled=printLCD(0,2," ");
-                    MtoCvar.peak_enabled=printLCD(0,edit_row_index,">");
-                }
-
-        }
-        if(Enter_pressed){
-            Enter_pressed=0;
-            if(!edit_mode){
-            edit_mode=1;
-            }
-            else{
-                edit_mode=0;
-                MtoCvar.peak_enabled=noBlinkLCD();
-                switch(edit_row_index){
-                case 0:
-                    MtoCvar.solar_available=editvar;
-                    break;
-                case 1:
-                    MtoCvar.is_peaktime=editvar;
-                    break;
-                case 2:
-                    MtoCvar.op_power=editvar;
-                    break;
-                default:
-                    break;
-
-                }
-            }
-        }
-        if(Back_pressed){
-            Back_pressed=0;
-            edit_mode=0;
-            MtoCvar.peak_enabled=noBlinkLCD();
-
-        }
-
 
         // Toggle the LED.
         if (count>10)
     	{
-            count2++;
-            ltoa(count2,buffer);
-            MtoCvar.peak_enabled= printLCD(2,3,buffer);
+            // Tell the master to read data.
+            I2CMasterControl(I2C0_MASTER_BASE, I2C_MASTER_CMD_SINGLE_RECEIVE);
+            // Read the data from the master.
+            tempData = I2CMasterDataGet(I2C0_MASTER_BASE);
+            while(I2CMasterBusy(I2C0_MASTER_BASE))
+            {
+
+            }
+            MtoCvar.op_power=tempData;
 
     	    if(LED==0){
     			LED = 1;
