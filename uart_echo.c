@@ -461,6 +461,7 @@ main(void)
     TimerEnable(TIMER0_BASE, TIMER_A);
     TimerEnable(TIMER1_BASE, TIMER_A);
 
+    delayMicroseconds(2000000);
     currentPage=HOME;
     MtoCvar.peak_enabled=initializeLCD(20, 4, LCD_5x8DOTS);
     MtoCvar.peak_enabled=setBacklightLCD(255);
