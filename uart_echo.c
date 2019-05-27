@@ -98,10 +98,15 @@ struct CtoMData {
 
     unsigned long long Pw;
     unsigned short start_flag;
-    float Vdc;
-    float Vgrid;
-    float Vout;
-    enum states system_state;
+    float BatVoltage;
+    float BatCurrent;
+    float GridVoltage;
+    float GridCurrent;
+    float HomeVoltage;
+    float HomeCurrent;
+    float PowerFactor;
+    enum states SystemState;
+    unsigned short ReasonState;
 
 };
 
@@ -229,33 +234,6 @@ Timer1IntHandler(void)
 {
     // Clear the timer interrupt.
     TimerIntClear(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
-
-    if(!GPIOPinRead(GPIO_PORTJ_BASE,GPIO_PIN_4))
-        {
-          //Enter_pressed=1;
-          DECRE_pressed = 1;
-        }
-    if(!GPIOPinRead(GPIO_PORTJ_BASE,GPIO_PIN_5))
-        {
-          //Back_pressed=1;
-          Enter_pressed=1;
-        }
-    if(!GPIOPinRead(GPIO_PORTJ_BASE,GPIO_PIN_6))
-        {
-          //INCRE_pressed=1;
-          Back_pressed = 1;
-        }
-    if(!GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_5))
-        {
-          //DECRE_pressed=1;
-          INCRE_pressed = 1;
-        }
-
-//    Enter=GPIOPinRead(GPIO_PORTJ_BASE,GPIO_PIN_4);
-//    Back=GPIOPinRead(GPIO_PORTJ_BASE,GPIO_PIN_5);
-//    INCRE=GPIOPinRead(GPIO_PORTJ_BASE,GPIO_PIN_6);
-//    DECRE=GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_5);
-
     // Toggle the flag for the second timer.
     HWREGBITW(&g_ulFlags, 1) ^= 1;
 
@@ -293,10 +271,20 @@ UARTSend(const unsigned char *pucBuffer, unsigned long ulCount)
     }
 }
 
-int a=54325;
-char buffer[20];
-float b=4562.26;
+void
+UART1Send(const unsigned char *pucBuffer, unsigned long ulCount)
+{
+    // Loop while there are more characters to send.
+    while(ulCount--)
+    {
+        // Write the next character to the UART.
+        UARTCharPut(UART1_BASE, *pucBuffer++);
+    }
+}
 
+void GenerateAndSendJasonObject();
+void ConvertFloatIntoString(float number, unsigned char*buffer);
+void ConvertIntegerIntoStringHEX(unsigned short value, unsigned char*buffer);
 
 int
 main(void)
@@ -333,6 +321,7 @@ main(void)
     SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
     SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER1);
     SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_UART1);
     SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C0);
 
     //Select core for controlling GPIO
@@ -360,10 +349,14 @@ main(void)
 //    GPIODirModeSet(GPIO_PORTA_BASE, GPIO_PIN_6, GPIO_DIR_MODE_IN);  //Set the PA6 as input
 
 
-    // Set GPIO E4 and E5 as UART pins.
+    // Set GPIO E4 and E5 as UART0 pins.
     GPIOPinTypeUART(GPIO_PORTE_BASE, GPIO_PIN_4 | GPIO_PIN_5);
     GPIOPinConfigure(GPIO_PE4_U0RX);
     GPIOPinConfigure(GPIO_PE5_U0TX);
+    // Set GPIO B4 and B5 as UART1 pins.
+    GPIOPinConfigure(GPIO_PB4_U1RX);
+    GPIOPinConfigure(GPIO_PB5_U1TX);
+    GPIOPinTypeUART(GPIO_PORTB_BASE, GPIO_PIN_4 | GPIO_PIN_5);
 
     //Set up pins for I2C
     //Unlock GPIO This has to be done because this pin is a NMI
@@ -414,9 +407,9 @@ main(void)
     // the I2C0 module.  The last parameter sets the I2C data transfer rate.
     // If false the data rate is set to 100kbps and if true the data rate will
     // be set to 400kbps.  For this example we will use a data rate of 100kbps.
-    I2CMasterEnable(I2C0_MASTER_BASE);
-    I2CMasterInitExpClk(I2C0_MASTER_BASE, SysCtlClockGet(
-                            SYSTEM_CLOCK_SPEED), false);
+//    I2CMasterEnable(I2C0_MASTER_BASE);
+//    I2CMasterInitExpClk(I2C0_MASTER_BASE, SysCtlClockGet(
+//                            SYSTEM_CLOCK_SPEED), false);
 
     // Tell the master module what address it will place on the bus when
     // communicating with the slave.  Set the address to SLAVE_ADDRESS
@@ -424,9 +417,12 @@ main(void)
     // which indicates the I2C Master is initiating a writes to the slave.  If
     // true, that would indicate that the I2C Master is initiating reads from
     // the slave.
-    I2CMasterSlaveAddrSet(I2C0_MASTER_BASE, LCD_ADDRESS, false);
+//    I2CMasterSlaveAddrSet(I2C0_MASTER_BASE, LCD_ADDRESS, false);
 
     // Configure the UART for 115,200, 8-N-1 operation.
+    UARTConfigSetExpClk(UART1_BASE, SysCtlClockGet(SYSTEM_CLOCK_SPEED), 9600,
+            (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE |
+                    UART_CONFIG_PAR_NONE));
      UARTConfigSetExpClk(UART0_BASE, SysCtlClockGet(SYSTEM_CLOCK_SPEED), 8000000,
                          (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE |
                           UART_CONFIG_PAR_NONE));
@@ -461,135 +457,12 @@ main(void)
     TimerEnable(TIMER0_BASE, TIMER_A);
     TimerEnable(TIMER1_BASE, TIMER_A);
 
-    delayMicroseconds(2000000);
-    currentPage=HOME;
-    MtoCvar.peak_enabled=initializeLCD(20, 4, LCD_5x8DOTS);
-    MtoCvar.peak_enabled=setBacklightLCD(255);
-    MtoCvar.peak_enabled=homeLCD();
-    MtoCvar.peak_enabled=clearLCD();
-
-
-//    cursorLCD();
-//    blinkLCD();
-//    printLCD(0,0,"JLanka");
-//    ltoa(a,buffer);
-//    printLCD(0,1,buffer);
-//    ftoa(b,buffer,2);
-//    printLCD(0,2,buffer);
-
-    MtoCvar.peak_enabled=printLCD(1,0,"Solar flag: ");
-    MtoCvar.peak_enabled=printLCD(1,1,"Peak flag: ");
-    MtoCvar.peak_enabled=printLCD(1,2,"OP Power: ");
-    ltoa(MtoCvar.solar_available,buffer);
-    MtoCvar.peak_enabled=printLCD(14,0,buffer);
-    ltoa(MtoCvar.is_peaktime,buffer);
-    MtoCvar.peak_enabled=printLCD(14,1,buffer);
-    ltoa(MtoCvar.op_power,buffer);
-    MtoCvar.peak_enabled=printLCD(14,2,buffer);
-
-
-
     //Loop forever
     while(1){
-
-//        printLCD(0,0," ");
-//        printLCD(0,1," ");
-//        printLCD(0,2," ");
-//        printLCD(0,edit_row_index,">");
-
-
-
-        if(edit_mode){
-            ltoa(editvar,buffer);
-            MtoCvar.peak_enabled= printLCD(14,edit_row_index,buffer);
-            MtoCvar.peak_enabled=setCursorLCD(14, edit_row_index);
-            MtoCvar.peak_enabled=blinkLCD();
-        }
-        else{
-            switch(edit_row_index){
-             case 0:
-                 editvar=MtoCvar.solar_available;
-                 break;
-             case 1:
-                 editvar=MtoCvar.is_peaktime;
-                 break;
-             case 2:
-                 editvar=MtoCvar.op_power;
-                 break;
-             default:
-                 break;
-             }
-        }
-
-        if(DECRE_pressed){
-            DECRE_pressed=0;
-            if(edit_mode && editvar>0){
-                editvar--;
-            }
-            else{
-                if(edit_row_index<3){
-                    edit_row_index++;
-                    MtoCvar.peak_enabled=printLCD(0,0," ");
-                    MtoCvar.peak_enabled=printLCD(0,1," ");
-                    MtoCvar.peak_enabled=printLCD(0,2," ");
-                    MtoCvar.peak_enabled=printLCD(0,edit_row_index,">");
-                }
-            }
-        }
-        if(INCRE_pressed){
-            INCRE_pressed=0;
-            if(edit_mode){
-                editvar++;
-            }
-            else
-                if(edit_row_index>0){
-                    edit_row_index--;
-                    MtoCvar.peak_enabled=printLCD(0,0," ");
-                    MtoCvar.peak_enabled=printLCD(0,1," ");
-                    MtoCvar.peak_enabled=printLCD(0,2," ");
-                    MtoCvar.peak_enabled=printLCD(0,edit_row_index,">");
-                }
-
-        }
-        if(Enter_pressed){
-            Enter_pressed=0;
-            if(!edit_mode){
-            edit_mode=1;
-            }
-            else{
-                edit_mode=0;
-                MtoCvar.peak_enabled=noBlinkLCD();
-                switch(edit_row_index){
-                case 0:
-                    MtoCvar.solar_available=editvar;
-                    break;
-                case 1:
-                    MtoCvar.is_peaktime=editvar;
-                    break;
-                case 2:
-                    MtoCvar.op_power=editvar;
-                    break;
-                default:
-                    break;
-
-                }
-            }
-        }
-        if(Back_pressed){
-            Back_pressed=0;
-            edit_mode=0;
-            MtoCvar.peak_enabled=noBlinkLCD();
-
-        }
-
-
+        count++;
         // Toggle the LED.
-        if (count>10)
+        if ((count%1000)==0)
     	{
-            count2++;
-            ltoa(count2,buffer);
-            MtoCvar.peak_enabled= printLCD(2,3,buffer);
-
     	    if(LED==0){
     			LED = 1;
     			GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_7, ~0);
@@ -598,12 +471,11 @@ main(void)
     			LED = 0;
     			GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_7, 0);
     		}
-    		count=0;
     	}
-    	else
-    		count++;
-
-        delayMicroseconds(10000);
+        else if((count%10000)==0)
+        {
+            GenerateAndSendJasonObject();
+        }
 
     }
 }
@@ -629,3 +501,121 @@ int ftoa(float value, char *buf, char decimalPoints)
     }
     return 1;
 }
+
+void ConvertFloatIntoString(float number, unsigned char*buffer)
+{
+    number = number*10.0;
+    int value = (int)(number);
+    //value = value*100;
+    buffer[4] = ((value%10) + 48);
+    value = value/10;
+    buffer[3] = '.';
+    buffer[2] = ((value%10) + 48);
+    value = value/10;
+    buffer[1] = ((value%10) + 48);
+    value = value/10;
+    buffer[0] = ((value%10) + 48);
+    value = value/10;
+}
+void ConvertIntegerIntoStringHEX(unsigned short value, unsigned char*buffer)
+{
+    unsigned short number;
+
+    unsigned char count  = 6;
+
+    while(count>2 )
+    {
+        count--;
+        number = (value%16);
+        value = (value/16);
+        if(number<10)
+            buffer[count] = (number + 48);
+        else
+        {
+            switch(number)
+            {
+            case 10:
+            buffer[count] = 'A';
+            break;
+            case 11:
+            buffer[count] = 'B';
+            break;
+            case 12:
+            buffer[count] = 'C';
+            break;
+            case 13:
+            buffer[count] = 'D';
+            break;
+            case 14:
+            buffer[count] = 'E';
+            break;
+            case 15:
+            buffer[count] = 'F';
+            break;
+            default:
+                buffer[count] = '0';
+                break;
+
+            }
+        }
+
+
+    }
+    buffer[1] = 'x';
+    buffer[0] = '0';
+
+}
+void GenerateAndSendJasonObject()
+{
+    unsigned char BufferString[6];
+    UARTSend("{\"BV\":\"",7);
+    UART1Send("{\"BV\":\"",7);
+    ConvertFloatIntoString(CtoMvar.BatVoltage, BufferString);
+    UARTSend(BufferString,5);
+    UART1Send(BufferString,5);
+    UARTSend("\",\"BC\":\"",8);
+    UART1Send("\",\"BC\":\"",8);
+    ConvertFloatIntoString(CtoMvar.BatCurrent, BufferString);
+    UARTSend(BufferString,5);
+    UART1Send(BufferString,5);
+    UARTSend("\",\"GV\":\"",8);
+    UART1Send("\",\"GV\":\"",8);
+    ConvertFloatIntoString(CtoMvar.GridVoltage, BufferString);
+    UARTSend(BufferString,5);
+    UART1Send(BufferString,5);
+    UARTSend("\",\"GC\":\"",8);
+    UART1Send("\",\"GC\":\"",8);
+    ConvertFloatIntoString(CtoMvar.GridCurrent, BufferString);
+    UARTSend(BufferString,5);
+    UART1Send(BufferString,5);
+    UARTSend("\",\"HV\":\"",8);
+    UART1Send("\",\"HV\":\"",8);
+    ConvertFloatIntoString(CtoMvar.HomeVoltage, BufferString);
+    UARTSend(BufferString,5);
+    UART1Send(BufferString,5);
+    UARTSend("\",\"HC\":\"",8);
+    UART1Send("\",\"HC\":\"",8);
+    ConvertFloatIntoString(CtoMvar.HomeCurrent,BufferString);
+    UARTSend(BufferString,5);
+    UART1Send(BufferString,5);
+    UARTSend("\",\"PF\":\"",8);
+    UART1Send("\",\"PF\":\"",8);
+    ConvertFloatIntoString((CtoMvar.PowerFactor*100),BufferString);
+    UARTSend(BufferString,5);
+    UART1Send(BufferString,5);
+    UARTSend("\",\"CS\":\"",8);
+    UART1Send("\",\"CS\":\"",8);
+    ConvertIntegerIntoStringHEX(CtoMvar.SystemState,BufferString);
+    UARTSend(BufferString,6);
+    UART1Send(BufferString,6);
+    UARTSend("\",\"RS\":\"",8);
+    UART1Send("\",\"RS\":\"",8);
+    ConvertIntegerIntoStringHEX(CtoMvar.ReasonState,BufferString);
+    UARTSend(BufferString,6);
+    UART1Send(BufferString,6);
+    UARTSend("\"}\n",3);
+    UART1Send("\"}\n",3);
+
+}
+
+
