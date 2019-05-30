@@ -6,7 +6,7 @@
 	<codegenToolVersion value="4.6.6"/>
 	<isElfFormat value="true"/>
 	<rts value="rtsv7M3_T_le_eabi.lib"/>
-	<origin value="E:/Workspace8_stable/uart_echo_m3_V4.0_Inverter_V2"/>
+	<origin value="E:/Workspace8_V2/uart_echo_m3_V4.0_Inverter_V2"/>
 	<deviceFamily value="TMS470"/>
 	<isTargetManual value="false"/>
 	<connection value="common/targetdb/connections/TIXDS110_Connection.xml"/>

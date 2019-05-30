@@ -79,19 +79,19 @@ enum states {
 
 struct Message {
 
-	float f1;
-	float f2;
-	float f3;
-	float f4;
-	float f5;
-	float f6;
+    float f1;
+    float f2;
+    float f3;
+    float f4;
+    float f5;
+    float f6;
 
-	unsigned short i1;
-	unsigned short i2;
-	unsigned short count;
+    unsigned short i1;
+    unsigned short i2;
+    unsigned short count;
 
-	unsigned char crc1;
-	unsigned char crc2;
+    unsigned char crc1;
+    unsigned char crc2;
 };
 
 struct CtoMData {
@@ -102,8 +102,8 @@ struct CtoMData {
     float BatCurrent;
     float GridVoltage;
     float GridCurrent;
-    float HomeVoltage;
-    float HomeCurrent;
+    float InverterVoltage;
+    float InverterCurrent;
     float PowerFactor;
     enum states SystemState;
     unsigned short ReasonState;
@@ -202,9 +202,9 @@ Timer0IntHandler(void)
 
     //**********Data transfer
     if(CtoMvar.start_flag==1)
-            MtoCvar.Pr=0;
+        MtoCvar.Pr=0;
     while(CtoMvar.Pw > MtoCvar.Pr){
-//      while(UARTCharPutNonBlocking(UART0_BASE,serial_print_char)){
+        //      while(UARTCharPutNonBlocking(UART0_BASE,serial_print_char)){
         Addr = MtoCvar.Pr % 256;//0xFF;//& 0xFF;
         M2 = base[Addr];
         UARTCharPut(UART0_BASE,0xAA);   //Send Begining
@@ -257,19 +257,19 @@ UARTIntHandler(void)
 
 }
 
-//*****************************************************************************
-// Send a string to the UART.
-//*****************************************************************************
-void
-UARTSend(const unsigned char *pucBuffer, unsigned long ulCount)
-{
-    // Loop while there are more characters to send.
-    while(ulCount--)
-    {
-        // Write the next character to the UART.
-        UARTCharPutNonBlocking(UART0_BASE, *pucBuffer++);
-    }
-}
+////*****************************************************************************
+//// Send a string to the UART.
+////*****************************************************************************
+//void
+//UARTSend(const unsigned char *pucBuffer, unsigned long ulCount)
+//{
+//    // Loop while there are more characters to send.
+//    while(ulCount--)
+//    {
+//        // Write the next character to the UART.
+//        UARTCharPutNonBlocking(UART0_BASE, *pucBuffer++);
+//    }
+//}
 
 void
 UART1Send(const unsigned char *pucBuffer, unsigned long ulCount)
@@ -326,7 +326,7 @@ main(void)
 
     //Select core for controlling GPIO
     GPIOPinConfigureCoreSelect(GPIO_PORTA_BASE, 0xFF, GPIO_PIN_C_CORE_SELECT);
-    GPIOPinConfigureCoreSelect(GPIO_PORTB_BASE, 0x3F, GPIO_PIN_C_CORE_SELECT);  // Two pins used for I2C
+    GPIOPinConfigureCoreSelect(GPIO_PORTB_BASE, 0x0F, GPIO_PIN_C_CORE_SELECT);  // Two pins used for I2C
     GPIOPinConfigureCoreSelect(GPIO_PORTC_BASE, 0x7F, GPIO_PIN_C_CORE_SELECT);  // 1 pins used byt M3 for blink LED
     GPIOPinConfigureCoreSelect(GPIO_PORTD_BASE, 0xFF, GPIO_PIN_C_CORE_SELECT);
     GPIOPinConfigureCoreSelect(GPIO_PORTE_BASE, 0xCF, GPIO_PIN_C_CORE_SELECT); // Two pins used by M3 for UART
@@ -337,7 +337,7 @@ main(void)
 
 
     GPIOPadConfigSet(GPIO_PORTA_BASE, 0xFF, GPIO_PIN_TYPE_STD_WPU);
-    GPIOPadConfigSet(GPIO_PORTB_BASE, 0x3F, GPIO_PIN_TYPE_STD_WPU);
+    GPIOPadConfigSet(GPIO_PORTB_BASE, 0x0F, GPIO_PIN_TYPE_STD_WPU);
     GPIOPadConfigSet(GPIO_PORTC_BASE, 0x7F, GPIO_PIN_TYPE_STD_WPU);
     GPIOPadConfigSet(GPIO_PORTD_BASE, 0xFF, GPIO_PIN_TYPE_STD_WPU);
     GPIOPadConfigSet(GPIO_PORTE_BASE, 0xCF, GPIO_PIN_TYPE_STD_WPU);
@@ -346,7 +346,7 @@ main(void)
     GPIOPadConfigSet(GPIO_PORTH_BASE, 0xFF, GPIO_PIN_TYPE_STD_WPU);
     GPIOPadConfigSet(GPIO_PORTJ_BASE, 0x8F, GPIO_PIN_TYPE_STD_WPU);
 
-//    GPIODirModeSet(GPIO_PORTA_BASE, GPIO_PIN_6, GPIO_DIR_MODE_IN);  //Set the PA6 as input
+    //    GPIODirModeSet(GPIO_PORTA_BASE, GPIO_PIN_6, GPIO_DIR_MODE_IN);  //Set the PA6 as input
 
 
     // Set GPIO E4 and E5 as UART0 pins.
@@ -360,7 +360,7 @@ main(void)
 
     //Set up pins for I2C
     //Unlock GPIO This has to be done because this pin is a NMI
-    GPIOPinUnlock(GPIO_PORTB_BASE, GPIO_PIN_7);
+    GPIOPinUnlock(GPIO_PORTB_BASE, GPIO_PIN_7);//Function was not available in V100, had to copy from v220
     GPIOPinConfigure(GPIO_PB6_I2C0SDA);
     GPIOPinConfigure(GPIO_PB7_I2C0SCL);
     GPIOPinTypeI2C(GPIO_PORTB_BASE, GPIO_PIN_6 | GPIO_PIN_7);   //GPIO14 | GPIO15
@@ -378,25 +378,25 @@ main(void)
 
 
 
- //   master_ram_init_control_m0m1_msgram_memories();
- //   master_ram_init_control_L0_L4_memories();
+    //   master_ram_init_control_m0m1_msgram_memories();
+    //   master_ram_init_control_L0_L4_memories();
 
 
-//    RamMReqSharedMemAccess((S6_ACCESS),C28_MASTER);
-//    RamMReqSharedMemAccess((S7_ACCESS),M3_MASTER);
+    //    RamMReqSharedMemAccess((S6_ACCESS),C28_MASTER);
+    //    RamMReqSharedMemAccess((S7_ACCESS),M3_MASTER);
     // assign S2 and S3 of the shared ram for use by the c28
     // Details of how c28 uses these memory sections is defined
     // in the c28 linker file.(28M35H52C1_RAM_lnk.cmd)
     RamMReqSharedMemAccess((S0_ACCESS | S1_ACCESS |S2_ACCESS | S3_ACCESS ),C28_MASTER);
-//    RamMReqSharedMemAccess((S4_ACCESS | S7_ACCESS),M3_MASTER);
-//    volatile unsigned long ulLoop;
-//
-//    for(ulLoop = 0; ulLoop < 2000000; ulLoop++)
-//    {
-//    }
+    //    RamMReqSharedMemAccess((S4_ACCESS | S7_ACCESS),M3_MASTER);
+    //    volatile unsigned long ulLoop;
+    //
+    //    for(ulLoop = 0; ulLoop < 2000000; ulLoop++)
+    //    {
+    //    }
 
     //Vieri/20111123/For buffer data get
-//    RamMReqSharedMemAccess((S5_ACCESS),C28_MASTER);
+    //    RamMReqSharedMemAccess((S5_ACCESS),C28_MASTER);
 
     IPCMtoCBootControlSystem(CBROM_MTOC_BOOTMODE_BOOT_FROM_FLASH);
 
@@ -407,9 +407,9 @@ main(void)
     // the I2C0 module.  The last parameter sets the I2C data transfer rate.
     // If false the data rate is set to 100kbps and if true the data rate will
     // be set to 400kbps.  For this example we will use a data rate of 100kbps.
-//    I2CMasterEnable(I2C0_MASTER_BASE);
-//    I2CMasterInitExpClk(I2C0_MASTER_BASE, SysCtlClockGet(
-//                            SYSTEM_CLOCK_SPEED), false);
+    //    I2CMasterEnable(I2C0_MASTER_BASE);
+    //    I2CMasterInitExpClk(I2C0_MASTER_BASE, SysCtlClockGet(
+    //                            SYSTEM_CLOCK_SPEED), false);
 
     // Tell the master module what address it will place on the bus when
     // communicating with the slave.  Set the address to SLAVE_ADDRESS
@@ -417,21 +417,21 @@ main(void)
     // which indicates the I2C Master is initiating a writes to the slave.  If
     // true, that would indicate that the I2C Master is initiating reads from
     // the slave.
-//    I2CMasterSlaveAddrSet(I2C0_MASTER_BASE, LCD_ADDRESS, false);
+    //    I2CMasterSlaveAddrSet(I2C0_MASTER_BASE, LCD_ADDRESS, false);
 
     // Configure the UART for 115,200, 8-N-1 operation.
+    UARTConfigSetExpClk(UART0_BASE, SysCtlClockGet(SYSTEM_CLOCK_SPEED), 8000000,
+                        (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE |
+                                UART_CONFIG_PAR_NONE));
     UARTConfigSetExpClk(UART1_BASE, SysCtlClockGet(SYSTEM_CLOCK_SPEED), 9600,
-            (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE |
-                    UART_CONFIG_PAR_NONE));
-     UARTConfigSetExpClk(UART0_BASE, SysCtlClockGet(SYSTEM_CLOCK_SPEED), 8000000,
-                         (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE |
-                          UART_CONFIG_PAR_NONE));
+                        (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE |
+                                UART_CONFIG_PAR_NONE));
 
-     // Enable the UART interrupt.
-     IntRegister(INT_UART0, UARTIntHandler);
-     IntEnable(INT_UART0);
-     UARTIntEnable(UART0_BASE, UART_INT_RX | UART_INT_RT | UART_INT_TX | UART_INT_CTS);
-     UARTFIFOLevelSet(UART0_BASE,UART_FIFO_TX1_8 ,UART_FIFO_RX1_8);
+    // Enable the UART interrupt.
+    IntRegister(INT_UART0, UARTIntHandler);
+    IntEnable(INT_UART0);
+    UARTIntEnable(UART0_BASE, UART_INT_RX | UART_INT_RT | UART_INT_TX | UART_INT_CTS);
+    UARTFIFOLevelSet(UART0_BASE,UART_FIFO_TX1_8 ,UART_FIFO_RX1_8);
 
     // Configure the two 32-bit periodic timers.
     TimerConfigure(TIMER0_BASE, TIMER_CFG_32_BIT_PER);
@@ -461,20 +461,18 @@ main(void)
     while(1){
         count++;
         // Toggle the LED.
-        if ((count%1000)==0)
-    	{
-    	    if(LED==0){
-    			LED = 1;
-    			GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_7, ~0);
-    		}
-    		else{
-    			LED = 0;
-    			GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_7, 0);
-    		}
-    	}
-        else if((count%10000)==0)
+        if ((count%1000000)==0)
         {
-            GenerateAndSendJasonObject();
+            if(LED==0){
+                LED = 1;
+                GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_7, ~0);
+                GenerateAndSendJasonObject();
+            }
+            else{
+                LED = 0;
+                GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_7, 0);
+            }
+
         }
 
     }
@@ -535,23 +533,23 @@ void ConvertIntegerIntoStringHEX(unsigned short value, unsigned char*buffer)
             switch(number)
             {
             case 10:
-            buffer[count] = 'A';
-            break;
+                buffer[count] = 'A';
+                break;
             case 11:
-            buffer[count] = 'B';
-            break;
+                buffer[count] = 'B';
+                break;
             case 12:
-            buffer[count] = 'C';
-            break;
+                buffer[count] = 'C';
+                break;
             case 13:
-            buffer[count] = 'D';
-            break;
+                buffer[count] = 'D';
+                break;
             case 14:
-            buffer[count] = 'E';
-            break;
+                buffer[count] = 'E';
+                break;
             case 15:
-            buffer[count] = 'F';
-            break;
+                buffer[count] = 'F';
+                break;
             default:
                 buffer[count] = '0';
                 break;
@@ -568,52 +566,52 @@ void ConvertIntegerIntoStringHEX(unsigned short value, unsigned char*buffer)
 void GenerateAndSendJasonObject()
 {
     unsigned char BufferString[6];
-    UARTSend("{\"BV\":\"",7);
+    //UARTSend("{\"BV\":\"",7);
     UART1Send("{\"BV\":\"",7);
     ConvertFloatIntoString(CtoMvar.BatVoltage, BufferString);
-    UARTSend(BufferString,5);
+    //UARTSend(BufferString,5);
     UART1Send(BufferString,5);
-    UARTSend("\",\"BC\":\"",8);
+    //UARTSend("\",\"BC\":\"",8);
     UART1Send("\",\"BC\":\"",8);
-    ConvertFloatIntoString(CtoMvar.BatCurrent, BufferString);
-    UARTSend(BufferString,5);
+    ConvertFloatIntoString(sqrt(CtoMvar.BatCurrent), BufferString);
+    //UARTSend(BufferString,5);
     UART1Send(BufferString,5);
-    UARTSend("\",\"GV\":\"",8);
+    //UARTSend("\",\"GV\":\"",8);
     UART1Send("\",\"GV\":\"",8);
-    ConvertFloatIntoString(CtoMvar.GridVoltage, BufferString);
-    UARTSend(BufferString,5);
+    ConvertFloatIntoString(sqrt(CtoMvar.GridVoltage), BufferString);
+    //UARTSend(BufferString,5);
     UART1Send(BufferString,5);
-    UARTSend("\",\"GC\":\"",8);
+    //UARTSend("\",\"GC\":\"",8);
     UART1Send("\",\"GC\":\"",8);
-    ConvertFloatIntoString(CtoMvar.GridCurrent, BufferString);
-    UARTSend(BufferString,5);
+    ConvertFloatIntoString(sqrt(CtoMvar.GridCurrent), BufferString);
+    //UARTSend(BufferString,5);
     UART1Send(BufferString,5);
-    UARTSend("\",\"HV\":\"",8);
+    //UARTSend("\",\"HV\":\"",8);
     UART1Send("\",\"HV\":\"",8);
-    ConvertFloatIntoString(CtoMvar.HomeVoltage, BufferString);
-    UARTSend(BufferString,5);
+    ConvertFloatIntoString(CtoMvar.InverterVoltage, BufferString);
+    //UARTSend(BufferString,5);
     UART1Send(BufferString,5);
-    UARTSend("\",\"HC\":\"",8);
+    //UARTSend("\",\"HC\":\"",8);
     UART1Send("\",\"HC\":\"",8);
-    ConvertFloatIntoString(CtoMvar.HomeCurrent,BufferString);
-    UARTSend(BufferString,5);
+    ConvertFloatIntoString(sqrt(CtoMvar.InverterCurrent),BufferString);
+    //UARTSend(BufferString,5);
     UART1Send(BufferString,5);
-    UARTSend("\",\"PF\":\"",8);
+    //UARTSend("\",\"PF\":\"",8);
     UART1Send("\",\"PF\":\"",8);
     ConvertFloatIntoString((CtoMvar.PowerFactor*100),BufferString);
-    UARTSend(BufferString,5);
+    //UARTSend(BufferString,5);
     UART1Send(BufferString,5);
-    UARTSend("\",\"CS\":\"",8);
+    //UARTSend("\",\"CS\":\"",8);
     UART1Send("\",\"CS\":\"",8);
     ConvertIntegerIntoStringHEX(CtoMvar.SystemState,BufferString);
-    UARTSend(BufferString,6);
+    //UARTSend(BufferString,6);
     UART1Send(BufferString,6);
-    UARTSend("\",\"RS\":\"",8);
+    //UARTSend("\",\"RS\":\"",8);
     UART1Send("\",\"RS\":\"",8);
     ConvertIntegerIntoStringHEX(CtoMvar.ReasonState,BufferString);
-    UARTSend(BufferString,6);
+    //UARTSend(BufferString,6);
     UART1Send(BufferString,6);
-    UARTSend("\"}\n",3);
+    //UARTSend("\"}\n",3);
     UART1Send("\"}\n",3);
 
 }
