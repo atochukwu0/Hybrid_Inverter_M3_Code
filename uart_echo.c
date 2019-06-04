@@ -1,7 +1,3 @@
-
-
-
-
 //###########################################################################
 // FILE:   uart_echo.c
 // TITLE:  Example for reading data from and writing data to the UART in
@@ -12,6 +8,56 @@
 //###########################################################################
 //Major change to data acquisition structure
 //Used structures to share data between processors, Used start flag to sync pointers.
+
+
+#define true    0xAA
+#define false   0x55
+#define ACKed   0xBBBB
+#define NotACKed 0x6666
+
+#define ChargingCurrent_MAX                 -5
+#define ChargingCurrent_MIN                 -20
+#define gridFeedCurrent_MAX                 20
+#define gridFeedCurrent_MIN                 1
+#define UPSVoltage_MAX                      400
+#define UPSVoltage_MIN                      200
+#define OP_I_Limit_MAX                      50
+#define OP_I_Limit_MIN                      1
+#define LINE_V_Over_Hard_Limit_MAX          450
+#define LINE_V_Over_Hard_Limit_MIN          100
+#define LINE_V_Over_Moderate_Limit_MAX      440
+#define LINE_V_Over_Moderate_Limit_MIN      100
+#define LINE_V_Over_Soft_Limit_MAX          400
+#define LINE_V_Over_Soft_Limit_MIN          100
+#define LINE_V_Under_Limit_MAX              400
+#define LINE_V_Under_Limit_MIN              100
+#define DC_V_Under_UPS_Shut_Limit_MAX       400
+#define DC_V_Under_UPS_Shut_Limit_MIN       100
+#define DC_V_Under_Limit_MAX                400
+#define DC_V_Under_Limit_MIN                100
+#define DC_V_Grid_tie_start_Limit_MAX       400
+#define DC_V_Grid_tie_start_Limit_MIN       100
+#define DC_V_Grid_tie_stop_Limit_MAX        400
+#define DC_V_Grid_tie_stop_Limit_MIN        100
+#define DC_V_Chrg_Under_Limit_MAX           400
+#define DC_V_Chrg_Under_Limit_MIN           100
+#define DC_V_Chrg_Over_Limit_MAX            450
+#define DC_V_Chrg_Over_Limit_MIN            100
+#define DC_V_Chrg_Over_Limit_Offset_MAX     400
+#define DC_V_Chrg_Over_Limit_Offset_MIN     100
+#define max_chrg_current_MAX                -5
+#define max_chrg_current_MIN                -20
+#define min_chrg_current_MAX                -5
+#define min_chrg_current_MIN                -20
+#define LINE_V_Threshold_MAX                400
+#define LINE_V_Threshold_MIN                200
+
+#define OrangePiDataFramMaxSize 65
+
+#define M3_MASTER 0
+#define C28_MASTER 1
+
+#define LCD_ADDRESS 0x27
 
 #include "inc/hw_ints.h"
 #include "inc/hw_memmap.h"
@@ -42,7 +88,6 @@
 #include "driverlib/uart.h"
 #include "driverlib/timer.h"
 
-
 #include "utils/ustdlib.h"
 #include "utils/uartstdio.h"
 #include "utils/memcopy.h"
@@ -52,11 +97,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-
-#define M3_MASTER 0
-#define C28_MASTER 1
-
-#define LCD_ADDRESS 0x27
 
 // Variables that need to shared with C28x and M3
 // m3 owned memory region
@@ -132,8 +172,99 @@ volatile struct CtoMData CtoMvar;
 volatile struct MtoCData MtoCvar;
 #pragma DATA_SECTION(MtoCvar,"SHARERAMS4");
 
-static volatile unsigned long g_ulFlags;
+typedef struct
+{
+    unsigned char startByte1;
+    unsigned char startByte2;
+    float BatteryVoltage;
+    float BatteryCurrent;
+    float GridVoltage;
+    float GridCurrent;
+    float HomeVoltage;
+    float HomeCurrent;
+    float PowerFactor;
+    unsigned short CurrentState;
+    unsigned short ReasonState;
+    unsigned short ACK;
 
+    unsigned char crc;
+
+
+} SendingMsg_t;
+
+typedef struct
+{
+    float ChargingCurrent;
+    float gridFeedCurrent;
+    float UPSVoltage;
+
+    //  unsigned char crc;
+
+} ReceiveMsg1_t;
+
+typedef struct
+{
+    float OP_I_Limit ;
+    float LINE_V_Over_Hard_Limit ;
+    float LINE_V_Over_Moderate_Limit ;
+    float LINE_V_Over_Soft_Limit ;
+    float LINE_V_Under_Limit ;
+
+    float DC_V_Under_UPS_Shut_Limit;
+    float DC_V_Under_Limit ;
+    float DC_V_Grid_tie_start_Limit;
+    float DC_V_Grid_tie_stop_Limit ;
+    float DC_V_Chrg_Under_Limit ;
+    float DC_V_Chrg_Over_Limit;
+    float DC_V_Chrg_Over_Limit_Offset;
+
+    float max_chrg_current ;
+    float min_chrg_current;
+    float LINE_V_Threshold ;
+
+    //  unsigned char crc;
+}ReceiveMsg2_t;
+
+typedef struct
+{
+    float Currentsense_Gain;
+    float OP_Voltagesense_Gain;
+    float GRID_Voltagesense_Gain;
+    float DC_VOLTAGESENSE_GAIN;
+    float DC_VOLTAGESENSE_OFFSET ;
+    float GRID_VOLTAGE_OFFSET ;
+    float OP_VOLTAGE_OFFSET;
+    float OP_CURRENT_OFFSET;
+    float IP_CURRENT_OFFSET;
+
+    //unsigned char crc;
+}ReceiveMsg3_t;
+
+typedef struct
+{
+    unsigned char Peak;
+    unsigned char CanstValue;
+
+}ReceiveMsg4_t;
+
+const unsigned char SendMsgSize = sizeof(SendingMsg_t);
+const unsigned char Msg1Size = sizeof(ReceiveMsg1_t);
+const unsigned char Msg2Size = sizeof(ReceiveMsg2_t);
+const unsigned char Msg3Size = sizeof(ReceiveMsg3_t);
+const unsigned char Msg4Size = sizeof(ReceiveMsg4_t);
+unsigned char RecieveData[OrangePiDataFramMaxSize] = {};
+unsigned char RecievedDataCount, MsgSize;
+
+SendingMsg_t SendingMsg;
+ReceiveMsg1_t tempReceiveMsg1;
+ReceiveMsg1_t ReceiveMsg1;
+ReceiveMsg2_t tempReceiveMsg2;
+ReceiveMsg2_t ReceiveMsg2;
+ReceiveMsg3_t tempReceiveMsg3;
+ReceiveMsg3_t ReceiveMsg3;
+ReceiveMsg4_t ReceiveMsg4;
+
+static volatile unsigned long g_ulFlags;
 //#ifdef FLASH
 #define DLOG_SIZE 400	// Uncomment for FLASH configuration only
 //#else
@@ -160,7 +291,6 @@ volatile int base_read_index =0;
 volatile char *character_pointer;
 volatile int index=0;
 volatile char serial_print_char;
-
 
 volatile long count=0,count2=0;
 volatile int index_drawn=0,edit_mode=0,edit_row_index=0,editvar=0;
@@ -189,6 +319,13 @@ __error__(char *pcFilename, unsigned long ulLine)
 }
 
 #endif
+
+void SendingUARTInverterStructure();
+unsigned char CRC8bit(unsigned char*data, unsigned char length);
+void DataValidationReceiveMsg1();
+void DataValidationReceiveMsg2();
+void DataValidationReceiveMsg3();
+void UpdatingRecievingData();
 
 volatile int LED = 0;
 //*****************************************************************************
@@ -247,13 +384,56 @@ UARTIntHandler(void)
 {
     unsigned long ulStatus;
 
-    // Get the interrrupt status.
+    // Get the interrupt status.
     ulStatus = UARTIntStatus(UART0_BASE, true);
 
     // Clear the asserted interrupts.
     UARTIntClear(UART0_BASE, ulStatus);
 
     // Loop while there are characters in the receive FIFO.
+
+}
+
+void UART1IntHandler(void)
+{
+    unsigned long ulStatus;
+
+    // Get the interrupt status.
+    ulStatus = UARTIntStatus(UART1_BASE, true);
+
+    // Clear the asserted interrupts.
+    UARTIntClear(UART1_BASE, ulStatus);
+
+    // Loop while there are characters in the receive FIFO.
+    while(UARTCharsAvail(UART1_BASE))
+    {
+        // Read the next character from the UART and write it back to the UART.
+        //      UARTCharPutNonBlocking(UART1_BASE,
+
+        RecieveData[RecievedDataCount] = UARTCharGetNonBlocking(UART1_BASE);
+        RecievedDataCount++;
+
+
+    }
+    if(RecievedDataCount > OrangePiDataFramMaxSize)
+    {
+        RecievedDataCount = 0;
+    }
+    TimerIntClear(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
+    TimerEnable(TIMER1_BASE, TIMER_A);
+}
+
+void Timer3IntHandler(void)
+{
+    // Clear the timer interrupt.
+    TimerIntClear(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
+
+    //tempcount++;
+    // Toggle the flag for the second timer.
+    HWREGBITW(&g_ulFlags, 1) ^= 1;
+    RecievedDataCount = 0;
+    TimerDisable(TIMER1_BASE, TIMER_A);
+    UpdatingRecievingData();
 
 }
 
@@ -282,13 +462,8 @@ UART1Send(const unsigned char *pucBuffer, unsigned long ulCount)
     }
 }
 
-void GenerateAndSendJasonObject();
-void ConvertFloatIntoString(float number, unsigned char*buffer);
-void ConvertIntegerIntoStringHEX(unsigned short value, unsigned char*buffer);
 
-int
-main(void)
-{
+int main(void) {
 
     // Disable Protection
     HWREG(SYSCTL_MWRALLOW) =  0xA5A5A5A5;
@@ -433,11 +608,15 @@ main(void)
     UARTIntEnable(UART0_BASE, UART_INT_RX | UART_INT_RT | UART_INT_TX | UART_INT_CTS);
     UARTFIFOLevelSet(UART0_BASE,UART_FIFO_TX1_8 ,UART_FIFO_RX1_8);
 
+    IntRegister(INT_UART1, UART1IntHandler);
+    IntEnable(INT_UART1);
+    UARTIntEnable(UART1_BASE, UART_INT_RX | UART_INT_RT);
+
     // Configure the two 32-bit periodic timers.
     TimerConfigure(TIMER0_BASE, TIMER_CFG_32_BIT_PER);
     TimerConfigure(TIMER1_BASE, TIMER_CFG_32_BIT_PER);
     TimerLoadSet(TIMER0_BASE, TIMER_A, (SysCtlClockGet(SYSTEM_CLOCK_SPEED)/10000)); //10kHz timer interrupt , used for data transfer
-    TimerLoadSet(TIMER1_BASE, TIMER_A, (SysCtlClockGet(SYSTEM_CLOCK_SPEED)/2));    // 2Hz timer interrupt , used for button de-bounce
+    TimerLoadSet(TIMER1_BASE, TIMER_A, (SysCtlClockGet(SYSTEM_CLOCK_SPEED)/10));    // 2Hz timer interrupt , used for button de-bounce
 
     // Setup the interrupts for the timer timeouts.
     IntEnable(INT_TIMER0A);
@@ -445,7 +624,10 @@ main(void)
     TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
     TimerIntEnable(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
     IntRegister(INT_TIMER0A, Timer0IntHandler);
-    IntRegister(INT_TIMER1A, Timer1IntHandler);
+    IntRegister(INT_TIMER1A, Timer3IntHandler);
+
+    SendingMsg.startByte1 = 0xAA;
+    SendingMsg.startByte2 = 0x55;
 
     MtoCvar.Pr = 0;
     MtoCvar.solar_available=0;
@@ -455,18 +637,18 @@ main(void)
 
     // Enable the timers.
     TimerEnable(TIMER0_BASE, TIMER_A);
-    TimerEnable(TIMER1_BASE, TIMER_A);
+    //TimerEnable(TIMER1_BASE, TIMER_A);
 
     //Loop forever
     while(1){
         count++;
         // Toggle the LED.
-        if ((count%1000000)==0)
+        if ((count%4000000)==0)
         {
             if(LED==0){
                 LED = 1;
                 GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_7, ~0);
-                GenerateAndSendJasonObject();
+                SendingUARTInverterStructure();
             }
             else{
                 LED = 0;
@@ -500,120 +682,217 @@ int ftoa(float value, char *buf, char decimalPoints)
     return 1;
 }
 
-void ConvertFloatIntoString(float number, unsigned char*buffer)
+void SendingUARTInverterStructure()
 {
-    number = number*10.0;
-    int value = (int)(number);
-    //value = value*100;
-    buffer[4] = ((value%10) + 48);
-    value = value/10;
-    buffer[3] = '.';
-    buffer[2] = ((value%10) + 48);
-    value = value/10;
-    buffer[1] = ((value%10) + 48);
-    value = value/10;
-    buffer[0] = ((value%10) + 48);
-    value = value/10;
-}
-void ConvertIntegerIntoStringHEX(unsigned short value, unsigned char*buffer)
-{
-    unsigned short number;
-
-    unsigned char count  = 6;
-
-    while(count>2 )
+    unsigned char count,size = SendMsgSize;
+    unsigned char *tempdata;//[SendMsgSize];
+    //memcpy(tempdata,&SendingMsg.BV,SendMsgSize-5);
+    SendingMsg.BatteryVoltage = CtoMvar.BatVoltage;
+    SendingMsg.BatteryCurrent = sqrt(CtoMvar.BatCurrent);
+    SendingMsg.GridVoltage = sqrt(CtoMvar.GridVoltage);
+    SendingMsg.GridCurrent = sqrt(CtoMvar.GridCurrent);
+    SendingMsg.HomeVoltage = CtoMvar.InverterVoltage;
+    SendingMsg.HomeCurrent = sqrt(CtoMvar.InverterCurrent);
+    SendingMsg.PowerFactor = CtoMvar.PowerFactor;
+    SendingMsg.CurrentState = CtoMvar.SystemState;
+    SendingMsg.ReasonState = CtoMvar.ReasonState;
+    SendingMsg.crc = CRC8bit(&SendingMsg.BatteryVoltage, (SendMsgSize-6));
+    tempdata = &SendingMsg.startByte1;
+    count = 0;
+    while(size--)
     {
-        count--;
-        number = (value%16);
-        value = (value/16);
-        if(number<10)
-            buffer[count] = (number + 48);
-        else
-        {
-            switch(number)
-            {
-            case 10:
-                buffer[count] = 'A';
-                break;
-            case 11:
-                buffer[count] = 'B';
-                break;
-            case 12:
-                buffer[count] = 'C';
-                break;
-            case 13:
-                buffer[count] = 'D';
-                break;
-            case 14:
-                buffer[count] = 'E';
-                break;
-            case 15:
-                buffer[count] = 'F';
-                break;
-            default:
-                buffer[count] = '0';
-                break;
+        UARTCharPut(UART1_BASE, tempdata[count]);
+        //UARTCharPut(UART0_BASE, data[count]);
+        count++;
+    }
+    //  if(SendingMsg.ACK == ACKed)
+    //  {
+    //      SendingMsg.ACK = NotACKed;
+    //  }
+    SendingMsg.ACK = 0;//ACKed;
+}
 
+unsigned char CRC8bit(unsigned char*data, unsigned char length)
+{
+    unsigned char j;
+    unsigned short temp1,temp2 = 0;
+    for(j = 0; j<length; j+=2 )
+    {
+        temp1 = data[j]|(data[j+1]<<8);
+        temp2 = temp2^temp1;
+    }
+    return (temp2 & 0xFF)^(temp2>>8);
+
+}
+
+void UpdatingRecievingData() {
+    //unsigned char i= 0;//,tempcount = 0;;
+    //  while(tempcount<60 && RecievedDataCount > 0)
+    //  {
+    if(RecieveData[0] == 0xAA && RecieveData[1] == 0x55)
+    {
+        switch (RecieveData[2])
+        {
+        case 1:
+            if(RecieveData[Msg1Size + 3] == CRC8bit(&RecieveData[3],Msg1Size))
+            {
+                memcpy(&tempReceiveMsg1,&RecieveData[3],Msg1Size);
+                DataValidationReceiveMsg1();
+                if(SendingMsg.ACK == ACKed)
+                    memcpy(&ReceiveMsg1,&RecieveData[3],Msg1Size);
+                break;
             }
+            else
+            {
+                SendingMsg.ACK = NotACKed;
+                break;
+            }
+        case 2:
+            if(RecieveData[Msg2Size + 3] == CRC8bit(&RecieveData[3],Msg2Size))
+            {
+                memcpy(&tempReceiveMsg2,&RecieveData[3],Msg2Size);
+                DataValidationReceiveMsg2();
+                if(SendingMsg.ACK == ACKed)
+                    memcpy(&ReceiveMsg2,&RecieveData[3],Msg2Size);
+                break;
+            }
+            else
+            {
+                SendingMsg.ACK = NotACKed;
+                break;
+            }
+        case 3:
+            if(RecieveData[Msg3Size + 3] == CRC8bit(&RecieveData[3],Msg3Size))
+            {
+//              memcpy(&tempReceiveMsg3,&RecieveData[3],Msg3Size);
+//              DataValidationReceiveMsg3();
+//              if(SendingMsg.ACK == ACKed)
+                memcpy(&ReceiveMsg3,&RecieveData[3],Msg3Size);
+                SendingMsg.ACK = ACKed;
+                break;
+            }
+            else
+            {
+                SendingMsg.ACK = NotACKed;
+                break;
+            }
+        case 4:
+            if(RecieveData[Msg4Size + 3] == CRC8bit(&RecieveData[3],Msg4Size))
+            {
+                memcpy(&ReceiveMsg4,&RecieveData[3],Msg4Size);
+                //SendingMsg.ACK = ACKed;
+                break;
+            }
+            else
+            {
+                //SendingMsg.ACK = NotACKed;
+                break;
+            }
+
+        default :
+            MsgSize = 0;
+            break;
         }
 
-
     }
-    buffer[1] = 'x';
-    buffer[0] = '0';
 
 }
-void GenerateAndSendJasonObject()
+
+void DataValidationReceiveMsg1()
 {
-    unsigned char BufferString[6];
-    //UARTSend("{\"BV\":\"",7);
-    UART1Send("{\"BV\":\"",7);
-    ConvertFloatIntoString(CtoMvar.BatVoltage, BufferString);
-    //UARTSend(BufferString,5);
-    UART1Send(BufferString,5);
-    //UARTSend("\",\"BC\":\"",8);
-    UART1Send("\",\"BC\":\"",8);
-    ConvertFloatIntoString(sqrt(CtoMvar.BatCurrent), BufferString);
-    //UARTSend(BufferString,5);
-    UART1Send(BufferString,5);
-    //UARTSend("\",\"GV\":\"",8);
-    UART1Send("\",\"GV\":\"",8);
-    ConvertFloatIntoString(sqrt(CtoMvar.GridVoltage), BufferString);
-    //UARTSend(BufferString,5);
-    UART1Send(BufferString,5);
-    //UARTSend("\",\"GC\":\"",8);
-    UART1Send("\",\"GC\":\"",8);
-    ConvertFloatIntoString(sqrt(CtoMvar.GridCurrent), BufferString);
-    //UARTSend(BufferString,5);
-    UART1Send(BufferString,5);
-    //UARTSend("\",\"HV\":\"",8);
-    UART1Send("\",\"HV\":\"",8);
-    ConvertFloatIntoString(CtoMvar.InverterVoltage, BufferString);
-    //UARTSend(BufferString,5);
-    UART1Send(BufferString,5);
-    //UARTSend("\",\"HC\":\"",8);
-    UART1Send("\",\"HC\":\"",8);
-    ConvertFloatIntoString(sqrt(CtoMvar.InverterCurrent),BufferString);
-    //UARTSend(BufferString,5);
-    UART1Send(BufferString,5);
-    //UARTSend("\",\"PF\":\"",8);
-    UART1Send("\",\"PF\":\"",8);
-    ConvertFloatIntoString((CtoMvar.PowerFactor*100),BufferString);
-    //UARTSend(BufferString,5);
-    UART1Send(BufferString,5);
-    //UARTSend("\",\"CS\":\"",8);
-    UART1Send("\",\"CS\":\"",8);
-    ConvertIntegerIntoStringHEX(CtoMvar.SystemState,BufferString);
-    //UARTSend(BufferString,6);
-    UART1Send(BufferString,6);
-    //UARTSend("\",\"RS\":\"",8);
-    UART1Send("\",\"RS\":\"",8);
-    ConvertIntegerIntoStringHEX(CtoMvar.ReasonState,BufferString);
-    //UARTSend(BufferString,6);
-    UART1Send(BufferString,6);
-    //UARTSend("\"}\n",3);
-    UART1Send("\"}\n",3);
+    if(tempReceiveMsg1.ChargingCurrent <= ChargingCurrent_MAX &&  tempReceiveMsg1.ChargingCurrent >= ChargingCurrent_MIN)
+        SendingMsg.ACK = ACKed;
+    else
+        SendingMsg.ACK = NotACKed;
+
+    if(tempReceiveMsg1.UPSVoltage <= UPSVoltage_MAX && tempReceiveMsg1.UPSVoltage >= UPSVoltage_MIN)
+        SendingMsg.ACK = ACKed;
+    else
+        SendingMsg.ACK = NotACKed;
+
+    if(tempReceiveMsg1.gridFeedCurrent <= gridFeedCurrent_MAX && tempReceiveMsg1.gridFeedCurrent >= gridFeedCurrent_MIN)
+        SendingMsg.ACK = ACKed;
+    else
+        SendingMsg.ACK = NotACKed;
 
 }
 
+void DataValidationReceiveMsg2()
+{
+    if(tempReceiveMsg2.DC_V_Chrg_Over_Limit <= DC_V_Chrg_Over_Limit_MAX && tempReceiveMsg2.DC_V_Chrg_Over_Limit >= DC_V_Chrg_Over_Limit_MIN)
+        SendingMsg.ACK = ACKed;
+    else
+        SendingMsg.ACK = NotACKed;
+
+    if(tempReceiveMsg2.DC_V_Chrg_Over_Limit_Offset <= DC_V_Chrg_Over_Limit_Offset_MAX && tempReceiveMsg2.DC_V_Chrg_Over_Limit_Offset >= DC_V_Chrg_Over_Limit_Offset_MIN)
+        SendingMsg.ACK = ACKed;
+    else
+        SendingMsg.ACK = NotACKed;
+
+    if(tempReceiveMsg2.DC_V_Chrg_Under_Limit <= DC_V_Chrg_Under_Limit_MAX && tempReceiveMsg2.DC_V_Chrg_Under_Limit >= DC_V_Chrg_Under_Limit_MIN)
+        SendingMsg.ACK = ACKed;
+    else
+        SendingMsg.ACK = NotACKed;
+
+    if(tempReceiveMsg2.DC_V_Grid_tie_start_Limit <= DC_V_Grid_tie_start_Limit_MAX && tempReceiveMsg2.DC_V_Grid_tie_start_Limit >= DC_V_Grid_tie_start_Limit_MIN)
+        SendingMsg.ACK = ACKed;
+    else
+        SendingMsg.ACK = NotACKed;
+
+    if(tempReceiveMsg2.DC_V_Grid_tie_stop_Limit <= DC_V_Grid_tie_stop_Limit_MAX && tempReceiveMsg2.DC_V_Grid_tie_stop_Limit >= DC_V_Grid_tie_stop_Limit_MIN)
+        SendingMsg.ACK = ACKed;
+    else
+        SendingMsg.ACK = NotACKed;
+
+    if(tempReceiveMsg2.DC_V_Under_Limit <= DC_V_Under_Limit_MAX && tempReceiveMsg2.DC_V_Under_Limit >= DC_V_Under_Limit_MIN)
+        SendingMsg.ACK = ACKed;
+    else
+        SendingMsg.ACK = NotACKed;
+
+    if(tempReceiveMsg2.DC_V_Under_UPS_Shut_Limit <= DC_V_Under_UPS_Shut_Limit_MAX && tempReceiveMsg2.DC_V_Under_UPS_Shut_Limit >= DC_V_Under_UPS_Shut_Limit_MIN)
+        SendingMsg.ACK = ACKed;
+    else
+        SendingMsg.ACK = NotACKed;
+
+    if(tempReceiveMsg2.LINE_V_Over_Hard_Limit <= LINE_V_Over_Hard_Limit_MAX && tempReceiveMsg2.LINE_V_Over_Hard_Limit >= LINE_V_Over_Hard_Limit_MIN)
+        SendingMsg.ACK = ACKed;
+    else
+        SendingMsg.ACK = NotACKed;
+
+    if(tempReceiveMsg2.LINE_V_Over_Moderate_Limit <= LINE_V_Over_Moderate_Limit_MAX && tempReceiveMsg2.LINE_V_Over_Moderate_Limit >= LINE_V_Over_Moderate_Limit_MIN)
+        SendingMsg.ACK = ACKed;
+    else
+        SendingMsg.ACK = NotACKed;
+
+    if(tempReceiveMsg2.LINE_V_Over_Soft_Limit <= LINE_V_Over_Soft_Limit_MAX && tempReceiveMsg2.LINE_V_Over_Soft_Limit >= LINE_V_Over_Soft_Limit_MIN)
+        SendingMsg.ACK = ACKed;
+    else
+        SendingMsg.ACK = NotACKed;
+
+    if(tempReceiveMsg2.LINE_V_Threshold <= LINE_V_Threshold_MAX && tempReceiveMsg2.LINE_V_Threshold >= LINE_V_Threshold_MIN)
+        SendingMsg.ACK = ACKed;
+    else
+        SendingMsg.ACK = NotACKed;
+
+    if(tempReceiveMsg2.LINE_V_Under_Limit <= LINE_V_Under_Limit_MAX && tempReceiveMsg2.LINE_V_Under_Limit >= LINE_V_Under_Limit_MIN)
+        SendingMsg.ACK = ACKed;
+    else
+        SendingMsg.ACK = NotACKed;
+
+    if(tempReceiveMsg2.OP_I_Limit <= OP_I_Limit_MAX && tempReceiveMsg2.OP_I_Limit >= OP_I_Limit_MIN)
+        SendingMsg.ACK = ACKed;
+    else
+        SendingMsg.ACK = NotACKed;
+
+    if(tempReceiveMsg2.max_chrg_current <= max_chrg_current_MAX && tempReceiveMsg2.max_chrg_current >= max_chrg_current_MIN)
+        SendingMsg.ACK = ACKed;
+    else
+        SendingMsg.ACK = NotACKed;
+
+    if(tempReceiveMsg2.min_chrg_current <= min_chrg_current_MAX && tempReceiveMsg2.min_chrg_current >= min_chrg_current_MIN)
+        SendingMsg.ACK = ACKed;
+    else
+        SendingMsg.ACK = NotACKed;
+
+}
 
