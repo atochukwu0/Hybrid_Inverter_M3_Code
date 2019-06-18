@@ -13,3 +13,4 @@ Debug/memcopy.obj
 Debug/makefile
 Debug/LiquidCrystal_PCF8574.obj
 Debug/LiquidCrystal_PCF8574.d
+*.launch
