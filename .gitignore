@@ -1,2 +1,15 @@
 /Debug/
 /Release/
+Debug/uart_echo_m3_linkInfo.xml
+Debug/uart_echo_m3.out
+Debug/uart_echo_m3.map
+Debug/uart_echo.obj
+Debug/uart_echo.d
+Debug/uart.obj
+Debug/subdir_rules.mk
+Debug/startup_ccs.obj
+Debug/SolarHv_DCAC-Lin.obj
+Debug/memcopy.obj
+Debug/makefile
+Debug/LiquidCrystal_PCF8574.obj
+Debug/LiquidCrystal_PCF8574.d

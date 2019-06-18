@@ -117,63 +117,7 @@ enum states {
     ERROR
 };
 
-struct Message {
-
-    float f1;
-    float f2;
-    float f3;
-    float f4;
-    float f5;
-    float f6;
-
-    unsigned short i1;
-    unsigned short i2;
-    unsigned short count;
-
-    unsigned char crc1;
-    unsigned char crc2;
-};
-
-struct CtoMData {
-
-    unsigned long long Pw;
-    unsigned short start_flag;
-    float BatVoltage;
-    float BatCurrent;
-    float GridVoltage;
-    float GridCurrent;
-    float InverterVoltage;
-    float InverterCurrent;
-    float PowerFactor;
-    enum states SystemState;
-    unsigned short ReasonState;
-
-};
-
-struct MtoCData {
-    unsigned long long Pr;
-    unsigned short solar_available;
-    unsigned short is_peaktime;
-    unsigned short peak_enabled;
-    unsigned short op_power;
-};
-
-unsigned char crc=0x00;
-unsigned char Addr = 0;
-
-volatile struct Message M2;
-
-struct Message  base[256];
-#pragma DATA_SECTION(base,"SHARERAMS2");
-
-volatile struct CtoMData CtoMvar;
-#pragma DATA_SECTION(CtoMvar,"SHARERAMS3");
-
-volatile struct MtoCData MtoCvar;
-#pragma DATA_SECTION(MtoCvar,"SHARERAMS4");
-
-typedef struct
-{
+typedef struct {
     unsigned char startByte1;
     unsigned char startByte2;
     float BatteryVoltage;
@@ -186,24 +130,16 @@ typedef struct
     unsigned short CurrentState;
     unsigned short ReasonState;
     unsigned short ACK;
-
     unsigned char crc;
-
-
 } SendingMsg_t;
 
-typedef struct
-{
+typedef struct {
     float ChargingCurrent;
     float gridFeedCurrent;
     float UPSVoltage;
-
-    //  unsigned char crc;
-
 } ReceiveMsg1_t;
 
-typedef struct
-{
+typedef struct{
     float OP_I_Limit ;
     float LINE_V_Over_Hard_Limit ;
     float LINE_V_Over_Moderate_Limit ;
@@ -221,12 +157,9 @@ typedef struct
     float max_chrg_current ;
     float min_chrg_current;
     float LINE_V_Threshold ;
+} ReceiveMsg2_t;
 
-    //  unsigned char crc;
-}ReceiveMsg2_t;
-
-typedef struct
-{
+typedef struct{
     float Currentsense_Gain;
     float OP_Voltagesense_Gain;
     float GRID_Voltagesense_Gain;
@@ -236,16 +169,66 @@ typedef struct
     float OP_VOLTAGE_OFFSET;
     float OP_CURRENT_OFFSET;
     float IP_CURRENT_OFFSET;
+} ReceiveMsg3_t;
 
-    //unsigned char crc;
-}ReceiveMsg3_t;
-
-typedef struct
-{
+typedef struct {
     unsigned char Peak;
     unsigned char CanstValue;
 
-}ReceiveMsg4_t;
+} ReceiveMsg4_t;
+
+struct Message {
+    float f1;
+    float f2;
+    float f3;
+    float f4;
+    float f5;
+    float f6;
+
+    unsigned short i1;
+    unsigned short i2;
+    unsigned short count;
+
+    unsigned char crc1;
+    unsigned char crc2;
+};
+
+struct CtoMData {
+    unsigned long long Pw;
+    unsigned short start_flag;
+    float BatVoltage;
+    float BatCurrent;
+    float GridVoltage;
+    float GridCurrent;
+    float InverterVoltage;
+    float InverterCurrent;
+    float PowerFactor;
+    enum states SystemState;
+    unsigned short ReasonState;
+};
+
+struct MtoCData {
+    unsigned long long Pr;
+    unsigned short solar_available;
+    unsigned short is_peaktime;
+    unsigned short peak_enabled;
+    unsigned short op_power;
+    ReceiveMsg1_t basic_configuration;
+};
+
+unsigned char crc=0x00;
+unsigned char Addr = 0;
+
+volatile struct Message M2;
+
+struct Message  base[256];
+#pragma DATA_SECTION(base,"SHARERAMS2");
+
+volatile struct CtoMData CtoMvar;
+#pragma DATA_SECTION(CtoMvar,"SHARERAMS3");
+
+volatile struct MtoCData MtoCvar;
+#pragma DATA_SECTION(MtoCvar,"SHARERAMS4");
 
 const unsigned char SendMsgSize = sizeof(SendingMsg_t);
 const unsigned char Msg1Size = sizeof(ReceiveMsg1_t);
@@ -320,19 +303,18 @@ __error__(char *pcFilename, unsigned long ulLine)
 
 #endif
 
-void SendingUARTInverterStructure();
+void SendUARTInverterStructure();
 unsigned char CRC8bit(unsigned char*data, unsigned char length);
-void DataValidationReceiveMsg1();
-void DataValidationReceiveMsg2();
-void DataValidationReceiveMsg3();
-void UpdatingRecievingData();
+void validateReceiveMsg1();
+void validateReceiveMsg2();
+void validateReceiveMsg3();
+void updateRecievingData();
 
 volatile int LED = 0;
 //*****************************************************************************
 // The interrupt handler for the first timer interrupt.
 //*****************************************************************************
-void
-Timer0IntHandler(void)
+void Timer0IntHandler(void)
 {
     // Clear the timer interrupt.
     TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
@@ -344,7 +326,7 @@ Timer0IntHandler(void)
         //      while(UARTCharPutNonBlocking(UART0_BASE,serial_print_char)){
         Addr = MtoCvar.Pr % 256;//0xFF;//& 0xFF;
         M2 = base[Addr];
-        UARTCharPut(UART0_BASE,0xAA);   //Send Begining
+        UARTCharPut(UART0_BASE,0xAA);   //Send Beginning
         UARTCharPut(UART0_BASE,0x55);
         while(index<30){
             serial_print_char = *(char*)(((char*)(&M2))+ index);
@@ -363,78 +345,42 @@ Timer0IntHandler(void)
 
 }
 
-//*****************************************************************************
-// The interrupt handler for the second timer interrupt.
-//*****************************************************************************
-void
-Timer1IntHandler(void)
-{
-    // Clear the timer interrupt.
-    TimerIntClear(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
-    // Toggle the flag for the second timer.
-    HWREGBITW(&g_ulFlags, 1) ^= 1;
-
+void Timer1IntHandler(void){
+    TimerIntClear(TIMER1_BASE, TIMER_TIMA_TIMEOUT);     // Clear the timer interrupt.
+    HWREGBITW(&g_ulFlags, 1) ^= 1;                      // Toggle the flag for the second timer.
 }
 
-//*****************************************************************************
-// The UART interrupt handler.
-//*****************************************************************************
-void
-UARTIntHandler(void)
-{
+void UARTIntHandler(void){
     unsigned long ulStatus;
-
-    // Get the interrupt status.
-    ulStatus = UARTIntStatus(UART0_BASE, true);
-
-    // Clear the asserted interrupts.
-    UARTIntClear(UART0_BASE, ulStatus);
-
-    // Loop while there are characters in the receive FIFO.
-
+    ulStatus = UARTIntStatus(UART0_BASE, true);     // Get the interrupt status.
+    UARTIntClear(UART0_BASE, ulStatus);             // Clear the asserted interrupts.
 }
 
-void UART1IntHandler(void)
-{
+void UART1IntHandler(void){
     unsigned long ulStatus;
+    ulStatus = UARTIntStatus(UART1_BASE, true);     // Get the interrupt status.
+    UARTIntClear(UART1_BASE, ulStatus);             // Clear the asserted interrupts.
 
-    // Get the interrupt status.
-    ulStatus = UARTIntStatus(UART1_BASE, true);
-
-    // Clear the asserted interrupts.
-    UARTIntClear(UART1_BASE, ulStatus);
-
-    // Loop while there are characters in the receive FIFO.
-    while(UARTCharsAvail(UART1_BASE))
-    {
+    while(UARTCharsAvail(UART1_BASE)){              // Loop while there are characters in the receive FIFO.
         // Read the next character from the UART and write it back to the UART.
-        //      UARTCharPutNonBlocking(UART1_BASE,
-
+        // UARTCharPutNonBlocking(UART1_BASE,
         RecieveData[RecievedDataCount] = UARTCharGetNonBlocking(UART1_BASE);
         RecievedDataCount++;
-
-
     }
+
     if(RecievedDataCount > OrangePiDataFramMaxSize)
-    {
         RecievedDataCount = 0;
-    }
+
     TimerIntClear(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
     TimerEnable(TIMER1_BASE, TIMER_A);
 }
 
-void Timer3IntHandler(void)
-{
-    // Clear the timer interrupt.
-    TimerIntClear(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
-
-    //tempcount++;
-    // Toggle the flag for the second timer.
-    HWREGBITW(&g_ulFlags, 1) ^= 1;
+void Timer3IntHandler(void){
+    TimerIntClear(TIMER1_BASE, TIMER_TIMA_TIMEOUT);     // Clear the timer interrupt.
+    HWREGBITW(&g_ulFlags, 1) ^= 1;      // Toggle the flag for the second timer.
     RecievedDataCount = 0;
     TimerDisable(TIMER1_BASE, TIMER_A);
-    UpdatingRecievingData();
-
+    updateRecievingData();
 }
 
 ////*****************************************************************************
@@ -451,13 +397,8 @@ void Timer3IntHandler(void)
 //    }
 //}
 
-void
-UART1Send(const unsigned char *pucBuffer, unsigned long ulCount)
-{
-    // Loop while there are more characters to send.
-    while(ulCount--)
-    {
-        // Write the next character to the UART.
+void UART1Send(const unsigned char *pucBuffer, unsigned long ulCount) {
+    while(ulCount--){        // Loop while there are more characters to send.
         UARTCharPut(UART1_BASE, *pucBuffer++);
     }
 }
@@ -471,13 +412,12 @@ int main(void) {
     // Tells M3 Core the vector table is at the beginning of C0 now.
     HWREG(NVIC_VTABLE) = 0x20005000;
 
-
     // Setup main clock tree for 75MHz - M3 and 150MHz - C28x
     SysCtlClockConfigSet(SYSCTL_SYSDIV_1 | SYSCTL_M3SSDIV_2 | SYSCTL_USE_PLL |
                          (SYSCTL_SPLLIMULT_M & 0x0F));
 
     MemCopy(&RamfuncsLoadStart, &RamfuncsLoadEnd, &RamfuncsRunStart);
-    // Call Flash Initialization to setup flash waitstates
+    // Call Flash Initialization to setup flash wait states
     // This function must reside in RAM
     FlashInit();
 
@@ -502,10 +442,10 @@ int main(void) {
     //Select core for controlling GPIO
     GPIOPinConfigureCoreSelect(GPIO_PORTA_BASE, 0xFF, GPIO_PIN_C_CORE_SELECT);
     GPIOPinConfigureCoreSelect(GPIO_PORTB_BASE, 0x0F, GPIO_PIN_C_CORE_SELECT);  // Two pins used for I2C
-    GPIOPinConfigureCoreSelect(GPIO_PORTC_BASE, 0x7F, GPIO_PIN_C_CORE_SELECT);  // 1 pins used byt M3 for blink LED
+    GPIOPinConfigureCoreSelect(GPIO_PORTC_BASE, 0x7F, GPIO_PIN_C_CORE_SELECT);  // 1 pin used by M3 for blink LED
     GPIOPinConfigureCoreSelect(GPIO_PORTD_BASE, 0xFF, GPIO_PIN_C_CORE_SELECT);
-    GPIOPinConfigureCoreSelect(GPIO_PORTE_BASE, 0xCF, GPIO_PIN_C_CORE_SELECT); // Two pins used by M3 for UART
-    GPIOPinConfigureCoreSelect(GPIO_PORTF_BASE, 0xDF, GPIO_PIN_C_CORE_SELECT); // 1 switch for menu usage
+    GPIOPinConfigureCoreSelect(GPIO_PORTE_BASE, 0xCF, GPIO_PIN_C_CORE_SELECT);  // Two pins used by M3 for UART
+    GPIOPinConfigureCoreSelect(GPIO_PORTF_BASE, 0xDF, GPIO_PIN_C_CORE_SELECT);  // 1 switch for menu usage
     GPIOPinConfigureCoreSelect(GPIO_PORTG_BASE, 0xFF, GPIO_PIN_C_CORE_SELECT);
     GPIOPinConfigureCoreSelect(GPIO_PORTH_BASE, 0xFF, GPIO_PIN_C_CORE_SELECT);
     GPIOPinConfigureCoreSelect(GPIO_PORTJ_BASE, 0x8F, GPIO_PIN_C_CORE_SELECT);  // 3 switches for menu usage
@@ -521,28 +461,28 @@ int main(void) {
     GPIOPadConfigSet(GPIO_PORTH_BASE, 0xFF, GPIO_PIN_TYPE_STD_WPU);
     GPIOPadConfigSet(GPIO_PORTJ_BASE, 0x8F, GPIO_PIN_TYPE_STD_WPU);
 
-    //    GPIODirModeSet(GPIO_PORTA_BASE, GPIO_PIN_6, GPIO_DIR_MODE_IN);  //Set the PA6 as input
+    //  GPIODirModeSet(GPIO_PORTA_BASE, GPIO_PIN_6, GPIO_DIR_MODE_IN);  //Set the PA6 as input
 
 
-    // Set GPIO E4 and E5 as UART0 pins.
+    //  Set GPIO E4 and E5 as UART0 pins.
     GPIOPinTypeUART(GPIO_PORTE_BASE, GPIO_PIN_4 | GPIO_PIN_5);
     GPIOPinConfigure(GPIO_PE4_U0RX);
     GPIOPinConfigure(GPIO_PE5_U0TX);
-    // Set GPIO B4 and B5 as UART1 pins.
+    //  Set GPIO B4 and B5 as UART1 pins.
     GPIOPinConfigure(GPIO_PB4_U1RX);
     GPIOPinConfigure(GPIO_PB5_U1TX);
     GPIOPinTypeUART(GPIO_PORTB_BASE, GPIO_PIN_4 | GPIO_PIN_5);
 
-    //Set up pins for I2C
-    //Unlock GPIO This has to be done because this pin is a NMI
+    //  Set up pins for I2C
+    //  Unlock GPIO This has to be done because this pin is a NMI
     GPIOPinUnlock(GPIO_PORTB_BASE, GPIO_PIN_7);//Function was not available in V100, had to copy from v220
     GPIOPinConfigure(GPIO_PB6_I2C0SDA);
     GPIOPinConfigure(GPIO_PB7_I2C0SCL);
     GPIOPinTypeI2C(GPIO_PORTB_BASE, GPIO_PIN_6 | GPIO_PIN_7);   //GPIO14 | GPIO15
 
-    // Set up the Pin for LED
+    //  Set up the Pin for LED
     GPIOPinTypeGPIOOutput(GPIO_PORTC_BASE, GPIO_PIN_7);
-    //Set up the pins for SW
+    //  Set up the pins for SW
     GPIOPinTypeGPIOInput(GPIO_PORTF_BASE,GPIO_PIN_5);   //GPIO37
     GPIOPinTypeGPIOInput(GPIO_PORTJ_BASE,GPIO_PIN_4);   //GPIO60
     GPIOPinTypeGPIOInput(GPIO_PORTJ_BASE,GPIO_PIN_5);   //GPIO61
@@ -631,7 +571,7 @@ int main(void) {
 
     MtoCvar.Pr = 0;
     MtoCvar.solar_available=0;
-    MtoCvar.is_peaktime=0;                              /**/
+    MtoCvar.is_peaktime=0;
     MtoCvar.peak_enabled=0;
     MtoCvar.op_power=0;
 
@@ -641,14 +581,16 @@ int main(void) {
 
     //Loop forever
     while(1){
+
+        MtoCvar.basic_configuration = ReceiveMsg1;
+
         count++;
-        // Toggle the LED.
         if ((count%1000000)==0)
         {
             if(LED==0){
                 LED = 1;
                 GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_7, ~0);
-                SendingUARTInverterStructure();
+                SendUARTInverterStructure();
             }
             else{
                 LED = 0;
@@ -661,28 +603,27 @@ int main(void) {
 }
 
 
-int ftoa(float value, char *buf, char decimalPoints)
-{
+int ftoa(float value, char *buf, char decimalPoints){
     int ipart = (int)value;
-    float fpart=value-(float)ipart;
+    float fpart = value - (float)ipart;
     ltoa(ipart,buf);
-    int i=strlen(buf);
+    int i = strlen(buf);
 
     // check for display option after point
     if (decimalPoints != 0)
     {
         buf[i] = '.';
 
-        // Get the value of fraction part upto given no.
+        // Get the value of fraction part up to given no.
         // of points after dot. The third parameter is needed
         // to handle cases like 233.007
         fpart = fpart * pow(10, decimalPoints);
-        ltoa((int)fpart,buf+i+1);
+        ltoa((int)fpart, buf+i+1);
     }
     return 1;
 }
 
-void SendingUARTInverterStructure()
+void SendUARTInverterStructure()
 {
     unsigned char count,size = SendMsgSize;
     unsigned char *tempdata;//[SendMsgSize];
@@ -725,81 +666,70 @@ unsigned char CRC8bit(unsigned char*data, unsigned char length)
 
 }
 
-void UpdatingRecievingData() {
+void updateRecievingData() {
     //unsigned char i= 0;//,tempcount = 0;;
     //  while(tempcount<60 && RecievedDataCount > 0)
     //  {
-    if(RecieveData[0] == 0xAA && RecieveData[1] == 0x55)
-    {
-        switch (RecieveData[2])
-        {
-        case 1:
-            if(RecieveData[Msg1Size + 3] == CRC8bit(&RecieveData[3],Msg1Size))
-            {
-                memcpy(&tempReceiveMsg1,&RecieveData[3],Msg1Size);
-                DataValidationReceiveMsg1();
-                if(SendingMsg.ACK == ACKed)
-                    memcpy(&ReceiveMsg1,&RecieveData[3],Msg1Size);
-                break;
-            }
-            else
-            {
-                SendingMsg.ACK = NotACKed;
-                break;
-            }
-        case 2:
-            if(RecieveData[Msg2Size + 3] == CRC8bit(&RecieveData[3],Msg2Size))
-            {
-                memcpy(&tempReceiveMsg2,&RecieveData[3],Msg2Size);
-                DataValidationReceiveMsg2();
-                if(SendingMsg.ACK == ACKed)
-                    memcpy(&ReceiveMsg2,&RecieveData[3],Msg2Size);
-                break;
-            }
-            else
-            {
-                SendingMsg.ACK = NotACKed;
-                break;
-            }
-        case 3:
-            if(RecieveData[Msg3Size + 3] == CRC8bit(&RecieveData[3],Msg3Size))
-            {
-//              memcpy(&tempReceiveMsg3,&RecieveData[3],Msg3Size);
-//              DataValidationReceiveMsg3();
-//              if(SendingMsg.ACK == ACKed)
-                memcpy(&ReceiveMsg3,&RecieveData[3],Msg3Size);
-                SendingMsg.ACK = ACKed;
-                break;
-            }
-            else
-            {
-                SendingMsg.ACK = NotACKed;
-                break;
-            }
-        case 4:
-            if(RecieveData[Msg4Size + 3] == CRC8bit(&RecieveData[3],Msg4Size))
-            {
-                memcpy(&ReceiveMsg4,&RecieveData[3],Msg4Size);
-                //SendingMsg.ACK = ACKed;
-                break;
-            }
-            else
-            {
-                //SendingMsg.ACK = NotACKed;
-                break;
-            }
+    if(RecieveData[0] == 0xAA && RecieveData[1] == 0x55){
+        switch (RecieveData[2]){
+            case 1:
+                if(RecieveData[Msg1Size + 3] == CRC8bit(&RecieveData[3],Msg1Size)){
+                    memcpy(&tempReceiveMsg1,&RecieveData[3],Msg1Size);
+                    validateReceiveMsg1();
+                    if(SendingMsg.ACK == ACKed)
+                        memcpy(&ReceiveMsg1,&RecieveData[3],Msg1Size);
+                    break;
+                }
+                else{
+                    SendingMsg.ACK = NotACKed;
+                    break;
+                }
+            case 2:
+                if(RecieveData[Msg2Size + 3] == CRC8bit(&RecieveData[3],Msg2Size)){
+                    memcpy(&tempReceiveMsg2,&RecieveData[3],Msg2Size);
+                    validateReceiveMsg2();
+                    if(SendingMsg.ACK == ACKed)
+                        memcpy(&ReceiveMsg2,&RecieveData[3],Msg2Size);
+                    break;
+                }
+                else{
+                    SendingMsg.ACK = NotACKed;
+                    break;
+                }
+            case 3:
+                if(RecieveData[Msg3Size + 3] == CRC8bit(&RecieveData[3],Msg3Size)){
+                    //memcpy(&tempReceiveMsg3,&RecieveData[3],Msg3Size);
+                    //DataValidationReceiveMsg3();
+                    //if(SendingMsg.ACK == ACKed)
+                    memcpy(&ReceiveMsg3,&RecieveData[3],Msg3Size);
+                    SendingMsg.ACK = ACKed;
+                    break;
+                }
+                else{
+                    SendingMsg.ACK = NotACKed;
+                    break;
+                }
+            case 4:
+                if(RecieveData[Msg4Size + 3] == CRC8bit(&RecieveData[3],Msg4Size)){
+                    memcpy(&ReceiveMsg4,&RecieveData[3],Msg4Size);
+                    //SendingMsg.ACK = ACKed;
+                    break;
+                }
+                else{
+                    //SendingMsg.ACK = NotACKed;
+                    break;
+                }
 
-        default :
-            MsgSize = 0;
-            break;
+            default :
+                MsgSize = 0;
+                break;
         }
 
     }
 
 }
 
-void DataValidationReceiveMsg1()
-{
+void validateReceiveMsg1() {
     if(tempReceiveMsg1.ChargingCurrent <= ChargingCurrent_MAX &&  tempReceiveMsg1.ChargingCurrent >= ChargingCurrent_MIN)
         SendingMsg.ACK = ACKed;
     else
@@ -814,11 +744,9 @@ void DataValidationReceiveMsg1()
         SendingMsg.ACK = ACKed;
     else
         SendingMsg.ACK = NotACKed;
-
 }
 
-void DataValidationReceiveMsg2()
-{
+void validateReceiveMsg2() {
     if(tempReceiveMsg2.DC_V_Chrg_Over_Limit <= DC_V_Chrg_Over_Limit_MAX && tempReceiveMsg2.DC_V_Chrg_Over_Limit >= DC_V_Chrg_Over_Limit_MIN)
         SendingMsg.ACK = ACKed;
     else
@@ -893,6 +821,5 @@ void DataValidationReceiveMsg2()
         SendingMsg.ACK = ACKed;
     else
         SendingMsg.ACK = NotACKed;
-
 }
 
