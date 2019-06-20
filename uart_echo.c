@@ -445,10 +445,13 @@ int main(void) {
     GPIOPinConfigureCoreSelect(GPIO_PORTC_BASE, 0x7F, GPIO_PIN_C_CORE_SELECT);  // 1 pin used by M3 for blink LED
     GPIOPinConfigureCoreSelect(GPIO_PORTD_BASE, 0xFF, GPIO_PIN_C_CORE_SELECT);
     GPIOPinConfigureCoreSelect(GPIO_PORTE_BASE, 0xCF, GPIO_PIN_C_CORE_SELECT);  // Two pins used by M3 for UART
-    GPIOPinConfigureCoreSelect(GPIO_PORTF_BASE, 0xDF, GPIO_PIN_C_CORE_SELECT);  // 1 switch for menu usage
+//    GPIOPinConfigureCoreSelect(GPIO_PORTF_BASE, 0xDF, GPIO_PIN_C_CORE_SELECT);  // 1 switch for menu usage
+    GPIOPinConfigureCoreSelect(GPIO_PORTF_BASE, 0xFF, GPIO_PIN_C_CORE_SELECT);
     GPIOPinConfigureCoreSelect(GPIO_PORTG_BASE, 0xFF, GPIO_PIN_C_CORE_SELECT);
     GPIOPinConfigureCoreSelect(GPIO_PORTH_BASE, 0xFF, GPIO_PIN_C_CORE_SELECT);
-    GPIOPinConfigureCoreSelect(GPIO_PORTJ_BASE, 0x8F, GPIO_PIN_C_CORE_SELECT);  // 3 switches for menu usage
+//    GPIOPinConfigureCoreSelect(GPIO_PORTJ_BASE, 0x8F, GPIO_PIN_C_CORE_SELECT);  // 3 switches for menu usage
+    GPIOPinConfigureCoreSelect(GPIO_PORTJ_BASE, 0xFF, GPIO_PIN_C_CORE_SELECT);
+
 
 
     GPIOPadConfigSet(GPIO_PORTA_BASE, 0xFF, GPIO_PIN_TYPE_STD_WPU);
@@ -456,13 +459,12 @@ int main(void) {
     GPIOPadConfigSet(GPIO_PORTC_BASE, 0x7F, GPIO_PIN_TYPE_STD_WPU);
     GPIOPadConfigSet(GPIO_PORTD_BASE, 0xFF, GPIO_PIN_TYPE_STD_WPU);
     GPIOPadConfigSet(GPIO_PORTE_BASE, 0xCF, GPIO_PIN_TYPE_STD_WPU);
-    GPIOPadConfigSet(GPIO_PORTF_BASE, 0xDF, GPIO_PIN_TYPE_STD_WPU);
+//    GPIOPadConfigSet(GPIO_PORTF_BASE, 0xDF, GPIO_PIN_TYPE_STD_WPU);
+    GPIOPadConfigSet(GPIO_PORTF_BASE, 0xFF, GPIO_PIN_TYPE_STD_WPU);
     GPIOPadConfigSet(GPIO_PORTG_BASE, 0xFF, GPIO_PIN_TYPE_STD_WPU);
     GPIOPadConfigSet(GPIO_PORTH_BASE, 0xFF, GPIO_PIN_TYPE_STD_WPU);
-    GPIOPadConfigSet(GPIO_PORTJ_BASE, 0x8F, GPIO_PIN_TYPE_STD_WPU);
-
-    //  GPIODirModeSet(GPIO_PORTA_BASE, GPIO_PIN_6, GPIO_DIR_MODE_IN);  //Set the PA6 as input
-
+//    GPIOPadConfigSet(GPIO_PORTJ_BASE, 0x8F, GPIO_PIN_TYPE_STD_WPU);
+    GPIOPadConfigSet(GPIO_PORTJ_BASE, 0xFF, GPIO_PIN_TYPE_STD_WPU);
 
     //  Set GPIO E4 and E5 as UART0 pins.
     GPIOPinTypeUART(GPIO_PORTE_BASE, GPIO_PIN_4 | GPIO_PIN_5);
@@ -482,11 +484,11 @@ int main(void) {
 
     //  Set up the Pin for LED
     GPIOPinTypeGPIOOutput(GPIO_PORTC_BASE, GPIO_PIN_7);
-    //  Set up the pins for SW
-    GPIOPinTypeGPIOInput(GPIO_PORTF_BASE,GPIO_PIN_5);   //GPIO37
-    GPIOPinTypeGPIOInput(GPIO_PORTJ_BASE,GPIO_PIN_4);   //GPIO60
-    GPIOPinTypeGPIOInput(GPIO_PORTJ_BASE,GPIO_PIN_5);   //GPIO61
-    GPIOPinTypeGPIOInput(GPIO_PORTJ_BASE,GPIO_PIN_6);   //GPIO62
+//    //  Set up the pins for SW
+//    GPIOPinTypeGPIOInput(GPIO_PORTF_BASE,GPIO_PIN_5);   //GPIO37
+//    GPIOPinTypeGPIOInput(GPIO_PORTJ_BASE,GPIO_PIN_4);   //GPIO60
+//    GPIOPinTypeGPIOInput(GPIO_PORTJ_BASE,GPIO_PIN_5);   //GPIO61
+//    GPIOPinTypeGPIOInput(GPIO_PORTJ_BASE,GPIO_PIN_6);   //GPIO62
 
     SysCtlReleaseSubSystemFromReset(SYSCTL_CONTROL_SYSTEM_RES_CNF);
 
