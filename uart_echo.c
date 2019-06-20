@@ -584,6 +584,9 @@ int main(void) {
 
         MtoCvar.basic_configuration = ReceiveMsg1;
 
+        if(SendingMsg.CurrentState != CtoMvar.SystemState || SendingMsg.ReasonState != CtoMvar.ReasonState)
+            SendUARTInverterStructure();
+
         count++;
         if ((count%1000000)==0)
         {
