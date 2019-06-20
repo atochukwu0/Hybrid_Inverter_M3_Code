@@ -14,3 +14,11 @@ Debug/makefile
 Debug/LiquidCrystal_PCF8574.obj
 Debug/LiquidCrystal_PCF8574.d
 *.launch
+.launches/uart_echo_m3_V4.0_Inverter_V2.launch
+Debug/makefile
+Debug/subdir_rules.mk
+Debug/uart_echo.d
+Debug/uart_echo.obj
+Debug/uart_echo_m3.map
+Debug/uart_echo_m3.out
+Debug/uart_echo_m3_linkInfo.xml
