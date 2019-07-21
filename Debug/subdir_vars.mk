@@ -12,7 +12,6 @@ LIB_SRCS += \
 C:/ti/controlSUITE/device_support/f28m35x/v100/MWare/driverlib/ccs/Debug/driverlib.lib 
 
 C_SRCS += \
-../LiquidCrystal_PCF8574.c \
 ../SolarHv_DCAC-Lin.c \
 ../memcopy.c \
 ../startup_ccs.c \
@@ -20,7 +19,6 @@ C_SRCS += \
 ../uart_echo.c 
 
 C_DEPS += \
-./LiquidCrystal_PCF8574.d \
 ./SolarHv_DCAC-Lin.d \
 ./memcopy.d \
 ./startup_ccs.d \
@@ -28,7 +26,6 @@ C_DEPS += \
 ./uart_echo.d 
 
 OBJS += \
-./LiquidCrystal_PCF8574.obj \
 ./SolarHv_DCAC-Lin.obj \
 ./memcopy.obj \
 ./startup_ccs.obj \
@@ -36,7 +33,6 @@ OBJS += \
 ./uart_echo.obj 
 
 OBJS__QUOTED += \
-"LiquidCrystal_PCF8574.obj" \
 "SolarHv_DCAC-Lin.obj" \
 "memcopy.obj" \
 "startup_ccs.obj" \
@@ -44,7 +40,6 @@ OBJS__QUOTED += \
 "uart_echo.obj" 
 
 C_DEPS__QUOTED += \
-"LiquidCrystal_PCF8574.d" \
 "SolarHv_DCAC-Lin.d" \
 "memcopy.d" \
 "startup_ccs.d" \
@@ -52,7 +47,6 @@ C_DEPS__QUOTED += \
 "uart_echo.d" 
 
 C_SRCS__QUOTED += \
-"../LiquidCrystal_PCF8574.c" \
 "../SolarHv_DCAC-Lin.c" \
 "../memcopy.c" \
 "../startup_ccs.c" \

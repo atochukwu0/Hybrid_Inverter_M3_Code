@@ -72,31 +72,24 @@
 #include "driverlib/interrupt.h"
 #include "driverlib/sysctl.h"
 #include "driverlib/uart.h"
-
-#include "inc/hw_ipc.h" // TRD 2018/04/27
+#include "inc/hw_ipc.h"
 #include "inc/hw_ram.h"
-
-
-#include "driverlib/debug.h"
 #include "driverlib/interrupt.h"
-#include "driverlib/flash.h"
-#include "driverlib/sysctl.h"
 #include "driverlib/systick.h"
-#include "driverlib/gpio.h"
 #include "driverlib/ipc.h"
 #include "driverlib/ram.h"
 #include "driverlib/uart.h"
 #include "driverlib/timer.h"
-
 #include "utils/ustdlib.h"
 #include "utils/uartstdio.h"
 #include "utils/memcopy.h"
 #include "Solar_DC_AC_IPC.h"
-#include "LiquidCrystal_PCF8574.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include "delay.h"
+#include "eeprom.h"
 
 // Variables that need to shared with C28x and M3
 // m3 owned memory region
@@ -115,6 +108,13 @@ enum states {
     GRID_TIED_SOLAR,
     GRID_TIED_PEAK,
     ERROR
+};
+
+enum off_conditions{
+    USER_INITIATED,
+    DC_VOLTAGE_UNDER_UPS_SHUT_LIMIT,
+    DC_VOLTAGE_UNDER_LIMIT,
+    OTHER_FAULT_SHUTDOWN
 };
 
 typedef struct {
@@ -205,6 +205,7 @@ struct CtoMData {
     float PowerFactor;
     enum states SystemState;
     unsigned short ReasonState;
+    enum off_conditions off_condition;
 };
 
 struct MtoCData {
@@ -214,6 +215,7 @@ struct MtoCData {
     unsigned short peak_enabled;
     unsigned short op_power;
     ReceiveMsg1_t basic_configuration;
+    enum off_conditions last_off_condition;
 };
 
 unsigned char crc=0x00;
@@ -522,9 +524,8 @@ int main(void) {
     // the I2C0 module.  The last parameter sets the I2C data transfer rate.
     // If false the data rate is set to 100kbps and if true the data rate will
     // be set to 400kbps.  For this example we will use a data rate of 100kbps.
-    //    I2CMasterEnable(I2C0_MASTER_BASE);
-    //    I2CMasterInitExpClk(I2C0_MASTER_BASE, SysCtlClockGet(
-    //                            SYSTEM_CLOCK_SPEED), false);
+    I2CMasterEnable(I2C0_MASTER_BASE);
+    I2CMasterInitExpClk(I2C0_MASTER_BASE, SysCtlClockGet(SYSTEM_CLOCK_SPEED), false);
 
     // Tell the master module what address it will place on the bus when
     // communicating with the slave.  Set the address to SLAVE_ADDRESS
