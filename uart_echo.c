@@ -10,8 +10,6 @@
 //Used structures to share data between processors, Used start flag to sync pointers.
 
 
-#define true    0xAA
-#define false   0x55
 #define ACKed   0xBBBB
 #define NotACKed 0x6666
 
@@ -57,7 +55,7 @@
 #define M3_MASTER 0
 #define C28_MASTER 1
 
-#define LCD_ADDRESS 0x27
+#define EEPROM_ADDRESS 0x50
 
 #include "inc/hw_ints.h"
 #include "inc/hw_memmap.h"
@@ -72,31 +70,25 @@
 #include "driverlib/interrupt.h"
 #include "driverlib/sysctl.h"
 #include "driverlib/uart.h"
-
-#include "inc/hw_ipc.h" // TRD 2018/04/27
+#include "inc/hw_ipc.h"
 #include "inc/hw_ram.h"
-
-
-#include "driverlib/debug.h"
 #include "driverlib/interrupt.h"
-#include "driverlib/flash.h"
-#include "driverlib/sysctl.h"
 #include "driverlib/systick.h"
-#include "driverlib/gpio.h"
 #include "driverlib/ipc.h"
 #include "driverlib/ram.h"
 #include "driverlib/uart.h"
 #include "driverlib/timer.h"
-
 #include "utils/ustdlib.h"
 #include "utils/uartstdio.h"
 #include "utils/memcopy.h"
 #include "Solar_DC_AC_IPC.h"
-#include "LiquidCrystal_PCF8574.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include "delay.h"
+#include "eeprom.h"
+#include "memoryAddress.h"
 
 // Variables that need to shared with C28x and M3
 // m3 owned memory region
@@ -114,7 +106,17 @@ enum states {
     GRID_POWER_CHARGING,
     GRID_TIED_SOLAR,
     GRID_TIED_PEAK,
-    ERROR
+    ERROR,
+    GRID_ABNORMAL,
+    DC_BUS_PRECHARGING
+};
+
+enum off_conditions{
+    UNKNOWN,
+    DC_VOLTAGE_UNDER_UPS_SHUT_LIMIT,
+    DC_VOLTAGE_UNDER_LIMIT,
+    OTHER_FAULT_SHUTDOWN,
+    USER_INITIATED,
 };
 
 typedef struct {
@@ -193,27 +195,30 @@ struct Message {
     unsigned char crc2;
 };
 
-struct CtoMData {
-    unsigned long long Pw;
-    unsigned short start_flag;
-    float BatVoltage;
-    float BatCurrent;
-    float GridVoltage;
-    float GridCurrent;
-    float InverterVoltage;
-    float InverterCurrent;
-    float PowerFactor;
-    enum states SystemState;
-    unsigned short ReasonState;
+//Should match struct in C28 code including variable order, enums have different lengths
+struct CtoMData {                                           /**/
+    unsigned long long Pw;                                  /**/
+    unsigned short start_flag;                              /**/
+    float BatVoltage;                                       /**/
+    float BatCurrent;                                       /**/
+    float GridVoltage;                                      /**/
+    float GridCurrent;                                      /**/
+    float InverterVoltage;                                  /**/
+    float InverterCurrent;                                  /**/
+    float PowerFactor;                                      /**/
+    short SystemState_16bit;                                /**/
+    short off_condition_16bit;                              /**/
+    unsigned short ReasonState;                             /**/
 };
-
-struct MtoCData {
-    unsigned long long Pr;
-    unsigned short solar_available;
-    unsigned short is_peaktime;
-    unsigned short peak_enabled;
-    unsigned short op_power;
-    ReceiveMsg1_t basic_configuration;
+//Should match struct in C28 code including variable order
+struct MtoCData {                                           /**/
+    unsigned long long Pr;                                  /**/
+    unsigned short solar_available;                         /**/
+    unsigned short is_peak_time;                            /**/
+    unsigned short peak_enabled;                            /**/
+    unsigned short op_power;                                /**/
+    ReceiveMsg1_t basic_configuration;                      /**/
+    enum off_conditions last_off_condition;                 /**/
 };
 
 unsigned char crc=0x00;
@@ -237,6 +242,8 @@ const unsigned char Msg3Size = sizeof(ReceiveMsg3_t);
 const unsigned char Msg4Size = sizeof(ReceiveMsg4_t);
 unsigned char RecieveData[OrangePiDataFramMaxSize] = {};
 unsigned char RecievedDataCount, MsgSize;
+enum states SystemState,LastSystemState;
+enum off_conditions off_condition;
 
 SendingMsg_t SendingMsg;
 ReceiveMsg1_t tempReceiveMsg1;
@@ -246,6 +253,7 @@ ReceiveMsg2_t ReceiveMsg2;
 ReceiveMsg3_t tempReceiveMsg3;
 ReceiveMsg3_t ReceiveMsg3;
 ReceiveMsg4_t ReceiveMsg4;
+
 
 static volatile unsigned long g_ulFlags;
 //#ifdef FLASH
@@ -275,22 +283,10 @@ volatile char *character_pointer;
 volatile int index=0;
 volatile char serial_print_char;
 
-volatile long count=0,count2=0;
+volatile long count=0,count2=0,data=0xFFFF,data2=0xFFFF;
 volatile int index_drawn=0,edit_mode=0,edit_row_index=0,editvar=0;
 volatile int Enter_pressed=0,Back_pressed=0,INCRE_pressed=0,DECRE_pressed=0;
 
-volatile enum pages {
-    HOME,
-    TEST,
-    NETWORK_SETTINGS,
-    VOLTAGE_SETTINGS,
-    CURRENT_SETTINGS,
-    DELAY_SETTINGS
-} currentPage;
-
-
-//Initialize variable,these needed to be update otherwise in real application
-char *Datetime="2019/05/02 19:40";
 
 //*****************************************************************************
 // The error routine that is called if the driver library encounters an error.
@@ -490,28 +486,9 @@ int main(void) {
 
     SysCtlReleaseSubSystemFromReset(SYSCTL_CONTROL_SYSTEM_RES_CNF);
 
-
-
-
-    //   master_ram_init_control_m0m1_msgram_memories();
-    //   master_ram_init_control_L0_L4_memories();
-
-
-    //    RamMReqSharedMemAccess((S6_ACCESS),C28_MASTER);
-    //    RamMReqSharedMemAccess((S7_ACCESS),M3_MASTER);
-    // assign S2 and S3 of the shared ram for use by the c28
     // Details of how c28 uses these memory sections is defined
     // in the c28 linker file.(28M35H52C1_RAM_lnk.cmd)
     RamMReqSharedMemAccess((S0_ACCESS | S1_ACCESS |S2_ACCESS | S3_ACCESS ),C28_MASTER);
-    //    RamMReqSharedMemAccess((S4_ACCESS | S7_ACCESS),M3_MASTER);
-    //    volatile unsigned long ulLoop;
-    //
-    //    for(ulLoop = 0; ulLoop < 2000000; ulLoop++)
-    //    {
-    //    }
-
-    //Vieri/20111123/For buffer data get
-    //    RamMReqSharedMemAccess((S5_ACCESS),C28_MASTER);
 
     IPCMtoCBootControlSystem(CBROM_MTOC_BOOTMODE_BOOT_FROM_FLASH);
 
@@ -522,17 +499,17 @@ int main(void) {
     // the I2C0 module.  The last parameter sets the I2C data transfer rate.
     // If false the data rate is set to 100kbps and if true the data rate will
     // be set to 400kbps.  For this example we will use a data rate of 100kbps.
-    //    I2CMasterEnable(I2C0_MASTER_BASE);
-    //    I2CMasterInitExpClk(I2C0_MASTER_BASE, SysCtlClockGet(
-    //                            SYSTEM_CLOCK_SPEED), false);
+//    I2CMasterEnable(I2C0_MASTER_BASE);
+    I2CMasterInitExpClk(I2C0_MASTER_BASE, SysCtlClockGet(SYSTEM_CLOCK_SPEED), false);
 
-    // Tell the master module what address it will place on the bus when
-    // communicating with the slave.  Set the address to SLAVE_ADDRESS
-    // (as set in the slave module).  The receive parameter is set to false
-    // which indicates the I2C Master is initiating a writes to the slave.  If
-    // true, that would indicate that the I2C Master is initiating reads from
-    // the slave.
-    //    I2CMasterSlaveAddrSet(I2C0_MASTER_BASE, LCD_ADDRESS, false);
+//    int status = EEPROMByteWrite(I2C0_MASTER_BASE, 0x50, 0x0000, 205);
+    data = EEPROMByteRead(I2C0_MASTER_BASE, EEPROM_ADDRESS , LAST_OFF_CONDITION_ADDR);
+    if(data<0 || data>4){ //4 is the no of elements in off_conditions enum
+        MtoCvar.last_off_condition = UNKNOWN;
+    }
+    else{
+        MtoCvar.last_off_condition = (enum off_conditions)data;
+    }
 
     // Configure the UART for 115,200, 8-N-1 operation.
     UARTConfigSetExpClk(UART0_BASE, SysCtlClockGet(SYSTEM_CLOCK_SPEED), 8000000,
@@ -571,7 +548,7 @@ int main(void) {
 
     MtoCvar.Pr = 0;
     MtoCvar.solar_available=0;
-    MtoCvar.is_peaktime=0;
+    MtoCvar.is_peak_time=0;
     MtoCvar.peak_enabled=0;
     MtoCvar.op_power=0;
 
@@ -579,25 +556,38 @@ int main(void) {
     TimerEnable(TIMER0_BASE, TIMER_A);
     //TimerEnable(TIMER1_BASE, TIMER_A);
 
+    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_7, ~0); //Turn OFF LED
+
     //Loop forever
     while(1){
 
+        SystemState=(enum states)CtoMvar.SystemState_16bit;
+        off_condition=(enum off_conditions)CtoMvar.off_condition_16bit;
+
+        //Update EEPROM when inverter is switched off
+        if((SystemState == OFF) && (LastSystemState != OFF) && (LastSystemState != BOOT)){
+            EEPROMByteWrite(I2C0_MASTER_BASE, EEPROM_ADDRESS, LAST_OFF_CONDITION_ADDR, (unsigned char)off_condition);
+            data2= EEPROMByteRead(I2C0_MASTER_BASE, EEPROM_ADDRESS , LAST_OFF_CONDITION_ADDR);
+        }
+
+        LastSystemState=SystemState;
+
         MtoCvar.basic_configuration = ReceiveMsg1;
 
-        if(SendingMsg.CurrentState != CtoMvar.SystemState || SendingMsg.ReasonState != CtoMvar.ReasonState)
+        if(SendingMsg.CurrentState != SystemState || SendingMsg.ReasonState != CtoMvar.ReasonState)
             SendUARTInverterStructure();
 
         count++;
         if ((count%1000000)==0)
         {
-            if(LED==0){
-                LED = 1;
-                GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_7, ~0);
+            if(LED==1){
+                LED = 0;
+                GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_7, ~0); // Turn off LED
                 SendUARTInverterStructure();
             }
             else{
-                LED = 0;
-                GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_7, 0);
+                LED = 1;
+                GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_7, 0); // Turn on LED
             }
 
         }
@@ -638,7 +628,7 @@ void SendUARTInverterStructure()
     SendingMsg.HomeVoltage = CtoMvar.InverterVoltage;
     SendingMsg.HomeCurrent = sqrt(CtoMvar.InverterCurrent);
     SendingMsg.PowerFactor = CtoMvar.PowerFactor;
-    SendingMsg.CurrentState = CtoMvar.SystemState;
+    SendingMsg.CurrentState = SystemState;
     SendingMsg.ReasonState = CtoMvar.ReasonState;
     SendingMsg.crc = CRC8bit(&SendingMsg.BatteryVoltage, (SendMsgSize-6));
     tempdata = &SendingMsg.startByte1;
